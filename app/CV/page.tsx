@@ -1,4 +1,5 @@
-import { BlogPosts } from 'app/components/posts'
+// import { BlogPosts } from 'app/components/posts'
+import Link from 'next/link';
 
 export const metadata = {
   title: 'Résumé',
@@ -8,10 +9,9 @@ export const metadata = {
 export default function Page() {
   return (
     <section>
-      {/* <h1 className="font-semibold text-2xl mb-8 tracking-tighter">My CV</h1> */}
-      <h1> EXPERIENCE </h1>
-      <h2>MARCH 2020 – SEPTEMBER 2023 </h2>
-      RESEARCH FELLOW, UNIVERSITY OF LEEDS
+      <Link href="https://yi-shin-lin-resume.vercel.app/" passHref>
+        Read my résumé.
+      </Link>
 
     </section>
   )
