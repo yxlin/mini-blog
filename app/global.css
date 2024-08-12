@@ -148,3 +148,40 @@ table {
 .title {
   text-wrap: balance;
 }
+
+/* button css*/
+.placeholder-box {
+  position: relative;
+  display: block;
+  width: 500px;
+  min-height: 150px;
+  margin-top: 50px;
+  padding: 30px;
+  border: 1px solid #888;
+  border-radius: 10px;
+  box-sizing: border-box;
+  box-shadow: 0 0 8px 0 rgba(0,0,0,0.25);
+}
+
+.placeholder-box p {
+  text-align: left;
+  margin: 0 0 15px;
+}
+
+.placeholder-box ul {
+  margin: 0;
+}
+
+/* Button */
+
+button {
+ display: block;
+ border: solid white;
+ border-width: 0 10px;
+ border-radius: 0;
+ background: green;
+ color: white;
+ font-size: 18px;
+ margin: -60px auto 15px;
+ padding: 15px;
+}

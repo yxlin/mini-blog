@@ -1,0 +1,138 @@
+---
+title: 'Propensity Scores - Matching a Variable'
+publishedAt: '2024-07-14'
+summary: 'The post explains the matching procedure of one convariate to an independent variable.'
+---
+Propensity Score Matching (PSM), developed by Rosenbaum and Rubin in 1983, is a statistical technique to mitigate bias caused by confounding factors, the variables that influence both the treatment received and the outcome of interest[*1].
+
+The following example shows one method to match a covariate to the binary independent variable (IV; ie treated vs. control). In another post, we will study how to match many covariates by first calculating their propensity scores (PSs) and then matching the treatment sample with the control sample based on the PS. 
+
+# The Smoking Example 
+A simulated dataset, smoker.csv [*2], has the information of 10,000 patients. Suppose that we're interested in the effects of a treatment method for a lung disease. In this scenario, we will be investigating the association between the varaibles:
+
+* **Independent Variable (IV)**: The variable tells us whether a patient receive the treatment or was placed in a control group.
+* **Dependent Variable (Outcome)**: This variable shows whether a patient survived after a certain period of time.[*3]
+
+```{R}
+d <- fread("data/smoker.csv")
+# smoker treatment outcome       SNme      TNme     yNme
+#    0         0       0   Non-smoker   Control  Survive
+#    1         1       0       Smoker Treatment  Survive
+#    ...
+
+#             Outcome
+#   IV        Survive Death
+#   Control    5351    1645
+#   Treatment  1982    1022
+
+d[, .N,.(TNme)]
+#          IV     N
+# 1:   Control  6996
+# 2: Treatment  3004
+
+cal0 <- d[, table(TNme, yNme)]
+cal1 <- d[, .N,.(TNme)]
+res <- cal0[, 1] / cal1$N
+round(res, 3)
+#   Control Treatment 
+#     0.235     0.340 
+
+
+```
+
+Without considering smoking history, the death rate in the control group was lower than the treatment group (23.5% vs 34%). This difference is called the average treatment effect (ATE), which in this case is 10.5 % in favor of the control group.
+
+That is, patients in the treatment group had a 10.5% higher chance of dying than the control group, implying the treatment increases the risk of death. Therefore, holding off the treatment might be advisable.
+
+We should conduct a proportion test to examine whether the difference and the sample size are enough to warrant a statement that the difference may also apply, if a replication study is conducted.  
+
+```
+ptest <- prop.test(x = c(1645, 1022), n = c(6996, 3004), 
+  alternative = "two.sided")
+
+#  2-sample test for equality of proportions with continuity correction
+
+# data:  c(1645, 1022) out of c(6996, 3004)
+# X-squared = 118.12, df = 1, p-value < 2.2e-16
+# alternative hypothesis: two.sided
+# 95 percent confidence interval:
+#  -0.12495834 -0.08519903
+# sample estimates:
+#    prop 1    prop 2 
+# 0.2351344 0.3402130 
+
+```
+
+# Matching the Covariate
+PSM works by balancing important factors (called covariates) between the treatment and control groups. Choosing the right factors is crucial, and researchers need to use their expertise to pick the most relevant ones.
+
+The figure below shows the proportion of smokers and non-smokers in both the control and treatment groups. Without matching, the two groups have different numbers of smokers. If the smoking status does affect the treatment, the unbalanced proportion could contribute to the result of the treatment effect. 
+
+![Matching and Non-matching](/smoker.png)
+
+Here's how PSM works: We go through each patient in the treatment group. If a patient smokes, we find a smoker from the control group with similar characteristics to match them with. The example here has only one covariate, i.e., the smoking status. We do the same for non-smokers in the treatment group.
+
+```
+treatment_pool <- d[treatment == 1]
+control_pool <- d[treatment == 0]
+NCtl <- d[, .N, .(TNme)]$N[1]
+NTre <- d[, .N, .(TNme)]$N[2]
+
+
+# Initialize an empty data frame for matched pairs
+matched_pairs <- data.frame()
+
+# Match patients
+for (i in seq_len(NTre)) {
+  treated_patient <- treatment_pool[i, ]
+
+  if (treated_patient$smoker == 1) {
+    # Select a smoker from the control group
+    matched_control <- control_pool[control_pool$smoker == 1, ]
+  
+  } else {
+    # Select a non-smoker from the control group
+    matched_control <- control_pool[control_pool$smoker == 0, ]
+    
+  }
+  N_matched <- nrow(matched_control)
+  selected <- matched_control[sample(1:N_matched, 1), ]
+
+  # Add the matched pair to the result
+  matched_pairs <- rbind(matched_pairs, 
+  rbind(treated_patient, selected))
+}
+```
+
+The results you get might vary slightly depending on how the random selection is done (with or without replacement, setting a random seed, etc.). This is normal because randomness is involved. However, the overall conclusion should be clear regardless of these details:
+
+The death rate in the treatment group seems to be lower than the control group (34% vs 49%). The ATE is 15.3% in favor of the treatment group. 
+
+```
+ptest <- prop.test(x = c(1484, 1022), n = c(3004, 3004), alternative = "two.sided")
+
+#    2-sample test for equality of proportions with continuity correction
+
+# data:  c(1484, 1022) out of c(3004, 3004)
+# X-squared = 145.49, df = 1, p-value < 2.2e-16
+# alternative hypothesis: two.sided
+# 95 percent confidence interval:
+#  0.1288309 0.1787590
+# sample estimates:
+#   prop 1   prop 2 
+# 0.494008 0.340213 
+
+```
+
+# Summary
+After matching the status of smoking, patients in the treatment group had a 15.3% lower chance of dying compared to the control group, suggesting that the treatment might be beneficial in reducing death rates. Therefore, implementing the treatment could be a promising option.
+
+# Footnote
+1. For instance, someone's drinking habits might influence the effectiveness of cognitive-behavioral therapy on, for instance, sleep quality. Simply comparing outcomes between those who received the therapy and those who didn't may mix the influence of the drinking with that of the therapy, if the two groups differed significantly in their drinking habits. PSM addresses a question like this by matching treated individuals with untreated individuals who have similar characteristics, including drinking habits.
+
+2. The smoker.csv is from [Gang Wang's kaggle page](https://www.kaggle.com/code/gangwang0/simple-matching-in-r).
+
+3. In a quasi-experiment, we typically gather information from existing databases, for instance insurance records. This differs from an experiment involving random assignment. Thus, the terms, IV and outcome, are mostly for the purpose of convenience. That is, the chance of a patient was in a treatment or a control group depends on the nature of how the record was obtained, instead of being randomly assigned by a designed plan.
+
+# Reference
+* A tutorial about the proportion test could be found in [Statistics Kingdom](https://www.statskingdom.com/doc_proportion_test.html).
