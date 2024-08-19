@@ -79,7 +79,7 @@ grouped[["fb_likes", "quantity_sold", "revenue"]].mean()
 #          1	113.203704	509.351852	12750.694444
 
 ```
-在未使用傾向評分進行配對的前,t-test顯示，當優恵卷附加最低購買需求時，可能會導致高收益、更多臉書讚、及售出更多商品。
+在未使用傾向評分進行配對前,t-test顯示，當優恵卷附加最低購買需求時，似乎和高收益、更多臉書讚、及售出更多商品是相關的。
 
 ```
 # student's t-test for revenue (dependent variable)
@@ -100,7 +100,6 @@ p_qs = t_test(df_control, df_treatment, DV="quantity_sold")
 # p = 0.001
 # Control vs. treatment: 333.00 vs. 509.35
 # Different group means (reject H0)
-
 
 ```
 

@@ -1,0 +1,428 @@
+---
+title: 'Perceptron - 介紹'
+publishedAt: '2024-08-19'
+summary: 'The post explains the matching procedure of one convariate to an independent variable.'
+---
+
+Perceptron 是類神經網絡最基本的架構之一，它的特性是：
+
+1. 計算方式為輸入向量乘權重向量，再加上一偏差值 z = x × w^t + b.
+
+{/* ($\mathbf{z} = \mathbf{x} \mathbf{w}^t + b$) */}
+
+2. 單元輸出最後再經過一轉換方程式，稱為Linear Threshold Unit (LTU)，常用的有Heaviside和sign方程式。
+
+3. 步驟1及步驟2反覆進行，每一次反覆調整權重向量的數值，調整的標的是使Perceptron模型的預測值和資料值之間的表距愈小愈好。輸入向量如果以行向量(row vector)表示，例如，x = [1, 1, 1, 1, 1]
+是一個1 x 5的向量，此一行代表一個樣本，五個列代表五個特徵值。此時權重向量若是，w = [-0.002, 0.0059, 0.0078, 0.0194, 0.0170]
+我們必須將之行進矩陣轉置 w^t.
+{/* $\mathbf{b} = [1, 1, 1, 1, 1]$  */}
+{/* $\mathbf{w} = [-0.002, 0.0059, 0.0078, 0.0194, 0.0170]$， */}
+{/* $\mathbf{w}^t$ */}
+
+![wt](/wt.png)
+
+如此才能進行矩陣向乘x × w^t 得到一個1 × 1的矩陣之後，加上僅有單一數值的偏差值 b，而後此數值再經過LTU的轉換，LTU可以是。
+
+![heavside](/heavside.png)
+
+或
+
+![sgn](/sgn.png)
+
+簡言之，和Logistic Regression或線性SVM類似，簡單的Perceptron模型可以用來分類二元資料。
+
+# 以Iris資料集為範例
+1. 讀入iris資料集，我們可以用此資料集的部份資料來示範用Perceptron做二元分類作業。
+2. 開始前，我們先做一些基本的資料檢驗。使用`table`，我們知道此資料集的標的有三個類別： Setosa，Versicolor，Virginica 。
+3. 它們分別有50個樣本，所以資料集中總共有150個資料點。
+
+```
+rm(list = ls())
+pkg <- c("data.table", "ggplot2", "tidyr)
+sapply(pkg, require, character.only = TRUE)
+
+source("Perceptron_class.R")
+d <- fread("iris.data")
+names(d) <- c("Sepal_len", "Sepal_wid", "Petal_len", "Petal_wid", "y")
+d$y <- ifelse(d$y == "Iris-setosa", "Setosa",
+ifelse(d$y == "Iris-versicolor", "Versicolor", "Virginica"))
+table(d$y)
+#  Setosa Versicolor  Virginica 
+#      50         50         50 
+```
+
+4. 使用`str`顯示資料集的提要。
+
+```
+str(d)
+# Classes ‘data.table’ and 'data.frame':  150 obs. of  5 variables:
+#  $ Sepal_len: num  5.1 4.9 4.7 4.6 5 5.4 4.6 5 4.4 4.9 ...
+#  $ Sepal_wid: num  3.5 3 3.2 3.1 3.6 3.9 3.4 3.4 2.9 3.1 ...
+#  $ Petal_len: num  1.4 1.4 1.3 1.5 1.4 1.7 1.4 1.5 1.4 1.5 ...
+#  $ Petal_wid: num  0.2 0.2 0.2 0.2 0.2 0.4 0.3 0.2 0.2 0.1 ...
+#  $ y        : chr  "Setosa" "Setosa" "Setosa" "Setosa" ...
+#  - attr(*, ".internal.selfref")=<externalptr> 
+
+```
+
+在此例中，我們僅取前100個樣本來展示，使用花萼長及花瓣長等二項特徵來訓練模型。因為資料集是依目標變項，y的類別排序，前100個樣本必然是Setosa及Versicolor。注意d是data frame的資料格式，所以我們必須將X及y轉換為矩陣以便運算，並將y的類別資料型態轉換數值資料型態Setosa為0，其他為1。在此文件最後可以找到我所撰寫的Perceptron的S4類別，它的內部使用矩陣運算。
+
+```
+ntrain <- 100
+X <- as.matrix(d[1:ntrain, c("Sepal_len", "Petal_len")])
+y <- as.matrix( ifelse(d[1:ntrain, "y"] == "Setosa", 0, 1) )
+
+```
+
+下圖顯示Setosa及Versicolor依據花萼長及花瓣長的樣本分布。
+
+```
+p0 <- ggplot(data = d[1:ntrain, c(1, 3, 5)]) + 
+  geom_point(aes(x = Sepal_len, y = Petal_len, colour = y), 
+    size = 5) +
+  scale_y_continuous(breaks = seq(0, 6, 1)) +
+  scale_x_continuous(breaks = seq(4, 7, 1)) +
+  labs(x = "Sepal length", y = "Petal length") +
+  theme_bw(base_size = 20) +
+  theme(legend.position = c(.8, .20),
+  legend.title = element_blank())
+
+png("figures/p0.png", width = 4, height = 4, units = "in", res = 300)
+p0
+dev.off()
+```
+
+![Iris](/p0.png "Iris Data")
+
+直接使用Perceptron類別運算。
+
+```
+pnn <- Perceptron(n_iter = 10, random_state = 1)
+pnn_model <- fit(pnn, X, y)
+
+```
+以下說明Perceptron的程式碼實驗Perceptron演算的詳細過程。
+
+# Perceptron的演算過程
+
+第一，我們從X變項(又程特徵值)中讀取樣本數及特徵數。
+
+```
+n_sample  <- dim(X)[1]
+n_feature <- dim(X)[2]
+```
+
+第二，使用者決定進行10次迴圈。
+
+```
+pnn <- Perceptron(n_iter = 10)
+pnn
+
+# An object of class "Perceptron"
+# Slot "w_":
+#      [,1]
+# [1,]   NA
+# 
+# Slot "eta":
+# [1] 0.1
+# 
+# Slot "n_iter":
+# [1] 10
+# 
+# Slot "random_state":
+# [1] 123
+# 
+# Slot "b_":
+# [1] 0
+# 
+# Slot "errors_":
+# numeric(0)
+# 
+# Slot "weight_evolutions":
+# list()
+# 
+# Slot "bias_evolutions":
+# list()
+
+```
+
+Perceptron的內部程式碼，一開始會準備尚未有數值，或是數值為0的記憶體位置來儲存：權重、偏差、估計誤差的矩陣或向量數值，此例中，我額外地準備權重及偏差的list，來檢驗演算的過程，實用上，我們通常會釋放這些最後不會用到的記憶體空間。
+
+```
+pnn@w_ <- matrix(rnorm(n_feature, 0, 0.01))
+pnn@b_ <- 0.0
+pnn@errors_ <- numeric(pnn@n_iter) 
+pnn@weight_evolutions <- vector("list", pnn@n_iter)
+pnn@bias_evolutions <- vector("list", pnn@n_iter)
+
+```
+
+
+Perceptron逐次地運算每一個遞迴，而每一次遞迴則個別地計算每一個樣本的輸入值，之後更新它的權重及偏差值，所以計算後每一個樣本會有它們個別的權重及偏差值，總共有10組數值，因為使用者指定了10次遞迴，最終一次遞迴視為最佳值。
+
+```
+for (i in seq_len(pnn@n_iter)) {
+    errors <- 0
+    weight_evolution <- matrix(NA, nrow = n_sample, ncol = n_feature)
+    bias_evolution <- numeric(n_sample) 
+
+    for (j in seq_len(n_sample)) {
+        xi <- X[j, ]
+        yi <- y[j]
+
+        # The regression function (net_input)
+        output0 <- xi %*% pnn@w_ + pnn@b_ 
+        
+        # The unit step function
+        output1 <- ifelse(output0 >= 0, 1, 0)
+        
+        # error: 0 - 1 (decrease weights), 1 - 0 (increase weights)
+        # correct: 0 - 0, 1 - 1
+        # eta: learning rate
+        difference <- yi - as.numeric(output1)
+        update <- pnn@eta * difference
+
+        # Update the weights and bias
+        pnn@w_ <- pnn@w_ + matrix(update * xi, nrow = n_feature)
+        pnn@b_ <- pnn@b_ + update
+
+        # Count the number of error predictions in a pass (aka epoch)
+        # So the denominator is the number of samples (in a training set)
+        errors <- errors + ifelse(update != 0.0, 1, 0)
+
+        # Record the evolution of the weights and bias
+        weight_evolution[j, ] <- pnn@w_
+        bias_evolution[j] <- pnn@b_
+    }
+    pnn@errors_[i] <- errors
+    pnn@weight_evolutions[[i]] <- weight_evolution
+    pnn@bias_evolutions[[i]] <- bias_evolution
+}
+
+```
+
+
+下圖顯示，特徵一和特徵二和偏差值在每一次遞迴的變化，至第五次遞迴數值逐漸穩定。
+![Perceptron](/p1.png "Perceptron evolutions")
+
+最後我們來檢示在萼長0至八公分及瓣長0至六公分的空間裡，Perceptron模型的預測，兩色交會處剛好是決策線。
+![Boundary](/mesh.png "Decision boundary")
+
+## Perceptron的程式碼
+
+```
+# Create a Perceptron class
+Perceptron <- setClass(
+  Class = "Perceptron",
+  representation(
+    w_ = "matrix",
+    eta = "numeric",
+    n_iter = "numeric",
+    random_state = "numeric",
+    b_ = "numeric",
+    errors_ = "numeric",
+    weight_evolutions = "list",
+    bias_evolutions = "list"
+  ),
+  prototype(
+    w_ = matrix(),
+    eta = 0.1,
+    n_iter = 10,
+    random_state = 123,
+    b_ = 0.0,
+    errors_ = numeric(),
+    weight_evolutions = list(),
+    bias_evolutions = list()
+  )
+)
+
+
+setGeneric("fit", function(object, ...) {
+  warning("Class ", class(object), " has not defined a fit method")
+  return(NULL)
+})
+
+setGeneric("predict", function(object, ...) {
+  warning("Class ", class(object), " has not defined a predict method")
+  return(NULL)
+})
+
+setGeneric("net_input", function(object, ...) {
+  warning("Class ", class(object), " has not defined a net_input method")
+  return(NULL)
+})
+
+setMethod("fit", "Perceptron", function(object, X, y) {
+  set.seed(object@random_state)
+  n_sample <- dim(X)[1]
+  n_feature <- dim(X)[2]
+
+  object@w_ <- matrix(rnorm(n_feature, 0, 0.01))
+  object@b_ <- 0.0
+  object@errors_ <- numeric(object@n_iter)
+  object@weight_evolutions <- vector("list", object@n_iter)
+  object@bias_evolutions <- vector("list", object@n_iter)
+
+
+  for (i in seq_len(object@n_iter)) {
+    errors <- 0
+    weight_evolution <- matrix(NA, nrow = n_sample, ncol = n_feature)
+    bias_evolution <- numeric(n_sample)
+
+    for (j in seq_len(n_sample)) {
+      xi <- X[j, ]
+      yi <- y[j]
+
+      # Convert update back to a vector
+      update <- c(object@eta * (yi - predict(object, xi)))
+      object@w_ <- object@w_ + update * xi
+      object@b_ <- object@b_ + update
+      errors <- errors + ifelse(update != 0.0, 1, 0)
+      weight_evolution[j, ] <- object@w_
+      bias_evolution[j] <- object@b_
+
+    }
+    object@errors_[i] <- errors
+    object@weight_evolutions[[i]] <- weight_evolution
+    object@bias_evolutions[[i]] <- bias_evolution
+  }
+  return(object)
+})
+
+
+setMethod(
+  "net_input", signature(object = "Perceptron"),
+  function(object, X) {
+    if (any(is.na(object@w_))) {
+      stop("Fit the model first")
+    }
+    return(X %*% object@w_ + object@b_)
+  }
+)
+
+setMethod(
+  "predict", signature(object = "Perceptron"),
+  function(object, X) {
+    ### Return class label after unit step ###
+    return(ifelse(net_input(object, X) >= 0.0, 1, 0))
+  }
+)
+
+plot_decision_regions <- function(X, y, classifier, resolution = 0.02) {
+  markers <- c(21, 22, 24, 25, 23)
+  colors <- c("red", "blue", "lightgreen", "gray", "cyan")
+  ny <- length(unique(y))
+  cmap <- colors[1:ny]
+
+  x1_min <- min(X[, 1]) - 1
+  x1_max <- max(X[, 1]) + 1
+  x2_min <- min(X[, 2]) - 1
+  x2_max <- max(X[, 2]) + 1
+  xx1 <- seq(x1_min, x1_max, by = resolution)
+  xx2 <- seq(x2_min, x2_max, by = resolution)
+  grid <- expand.grid(xx1, xx2)
+  colnames(grid) <- colnames(X)
+  grid_data <- as.data.frame(grid)
+
+  predicted_label <- predict(classifier, as.matrix(grid))
+  plab <- as.factor(ifelse(predicted_label == 0, "Setosa", "Versicolor"))
+
+  plot <- ggplot() +
+    geom_tile(
+      data = grid_data,
+      aes(Sepal_len, Petal_len, fill = plab), alpha = 0.3
+    ) +
+    scale_fill_manual(values = cmap) +
+    xlim(x1_min, x1_max) +
+    ylim(x2_min, x2_max) +
+    xlab("Sepal (cm)") +
+    ylab("Petal_len (cm)")
+
+  plot <- plot + geom_point(
+    data = as.data.frame(X[y == unique(y)[1], ]),
+    aes(
+      x = X[y == unique(y)[1], 1],
+      y = X[y == unique(y)[1], 2]
+    ),
+    color = colors[1], size = 3, shape = markers[1], fill = colors[1], stroke = 1
+  )
+
+  plot <- plot + geom_point(
+    data = as.data.frame(X[y == unique(y)[2], ]),
+    aes(
+      x = X[y == unique(y)[2], 1],
+      y = X[y == unique(y)[2], 2]
+    ),
+    color = colors[2], size = 3, shape = markers[2], fill = colors[2], stroke = 1
+  )
+  plot <- plot + theme(
+    legend.position = c(.8, .20),
+    legend.title = element_blank()
+  )
+
+  print(plot)
+  return(plot)
+}
+
+```
+
+## Perceptron 計算過程的視覺化碼
+```
+
+rm(list = ls())
+pkg <- c("tidyr", "ggplot2")
+sapply(pkg, require, character.only = TRUE)
+
+d4 <- NULL
+
+for (i in seq_len(pnn_model@n_iter)) {
+  w1 <- pnn_model@weight_evolutions[[i]][, 1]
+  w2 <- pnn_model@weight_evolutions[[i]][, 2]
+  nchange <- length(unique(w1))
+
+  if (nchange == 1) {
+    epoch_code <- i
+  }
+
+  if (nchange == 2) {
+    epoch_code <- c(rep(i, table(w1)[1]), rep(i + 0.5, table(w1)[2]))
+  }
+  if (nchange == 3) {
+    epoch_code <- c(
+      rep(i, table(w1)[1]),
+      rep(i + 1 / 3, table(w1)[2]),
+      rep(i + 2 / 3, table(w1)[3])
+    )
+  }
+
+  dtmp <- data.frame(
+    w1 = as.vector(t(pnn_model@weight_evolutions[[i]][, 1])),
+    w2 = as.vector(t(pnn_model@weight_evolutions[[i]][, 2])),
+    b = as.vector(pnn_model@bias_evolutions[[i]]),
+    epoch = epoch_code
+  )
+
+  d4 <- rbind(d4, dtmp)
+}
+
+
+d4_2 <- d4 %>%
+  pivot_longer(cols = c(w1, w2, b), names_to = "param", values_to = "y")
+
+p1 <- ggplot(d4_2) +
+  geom_point(aes(x = epoch, y = y), size = 5) +
+  geom_line(aes(x = epoch, y = y), size = 1) +
+  scale_x_continuous(breaks = seq(0, 10, 1)) +
+  facet_grid(param~., switch = "y") +
+  ylab("") +
+  theme_bw(base_size = 20) +
+  theme(legend.position = c(.8, .20),
+  legend.title = element_blank(),
+  strip.placement = "outside",
+   strip.background = element_blank())
+
+png("figures/p1.png", width = 8, height = 8, units = "in", res = 300)
+print(p1)
+dev.off()
+
+```
