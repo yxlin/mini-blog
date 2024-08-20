@@ -1,0 +1,95 @@
+---
+title: 'Perceptron - 以Fashion-MNIST為範例'
+publishedAt: '2024-08-20'
+summary: 'The post uses Fashion-MNIST to demonstrate one method to fit a Perceptron model.'
+---
+
+# Fashion-MNIST
+[Fashion-MNIST](https://github.com/zalandoresearch/fashion-mnist)是一組經典的資料集，訓練組中有60,000筆，而測試組有10,000筆樣本，它們全為各類衣飾圖檔，共被分為十個類別，如class_names變數所記錄，在原始資料中，它們分別是用數值0到9來代表。我們可以再自訓練組中分派出10,000組做為Validation set。
+
+```
+from utils import mnist_reader
+from sklearn.preprocessing import LabelEncoder
+
+class_names = ["T-shirt/上衣", 褲子", "套衫", "裙子", "外套",
+               "涼鞋", "襯衫", "運動鞋", "包包", "及踝靴"]
+
+
+DATA_DIR = '../data/fashion_mnist'
+X, Y = mnist_reader.load_mnist(path=DATA_DIR, kind='t10k')
+X_train, Y_train = mnist_reader.load_mnist(path=DATA_DIR, kind='train')
+
+le = LabelEncoder()
+y_ = le.fit_transform(Y)
+print(le.classes_)
+print(np.bincount(Y))
+
+# [0 1 2 3 4 5 6 7 8 9]
+# [1000 1000 1000 1000 1000 1000 1000 1000 1000 1000]
+
+```
+
+使用shape函數，我們可以得知X是10,000 x 784的特徵矩陣，每一行代表一筆資料，共10,000筆，每一最(column)代表一個特徵值，共有784個特徵值，此784個特徵值其實是28*28的像素值。
+
+```
+X[0, :].shape, 28*28, X.shape
+(784,), 784, (10000, 784))
+```
+
+
+```
+from utils.helper import invert_grayscale
+import matplotlib.pyplot as plt
+import os
+
+
+PROJECT_ROOT_DIR = "."
+IMAGES_PATH = os.path.join(PROJECT_ROOT_DIR, "images")
+# os.makedirs(IMAGES_PATH, exist_ok=True)
+
+
+def convert2image_format(image):
+    mnist_digits = image # X[0,:]
+    X0 = np.reshape(mnist_digits, (-1, 28, 28))
+
+    X0_ = invert_grayscale(X0)
+    out = X0_[0,:,:]
+    return out
+    # X0_.shape, X0_[0,:,:]
+    # (1, 28, 28)
+
+def convert2label_name(label):
+    # Creating a sample array with float values
+    float_array = np.array(label) # np.array(Y[0:9])
+
+    # Converting float_array to integers
+    out = np.array(class_names)[float_array.astype(int)]
+    return out
+
+def save_fig(fig_id, tight_layout=True, fig_extension="png", resolution=300):
+    path = os.path.join(IMAGES_PATH, fig_id + "." + fig_extension)
+    print("Saving figure", fig_id)
+    if tight_layout:
+        plt.tight_layout()
+    plt.savefig(path, format=fig_extension, dpi=resolution)
+
+
+```
+
+
+
+```
+import matplotlib.pyplot as plt
+
+image0 = convert2image_format(X[0,:])
+label0 = convert2label_name(Y[0])
+plt.imshow(image0, cmap="binary", interpolation="nearest")
+plt.title(label0, fontsize=12)
+
+
+```
+
+![Boot](/boot.png "Boot")
+
+![Fashion-MNIST](/fashion_mnist_plot.png "Fashion MNIST")
+

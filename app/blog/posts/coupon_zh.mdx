@@ -5,12 +5,48 @@ summary: '本文使用Propensity Score說明配對程序'
 ---
 
 # Groupon 案例
-Groupon 是一家致力於利用社交媒體協同團購的電子商務公司。為了取得購物折扣，Groupon團購會必須達到最低要求，買家才能享有折扣，例如，最低購買人數。這種最低購買需求是否會影響交易結果？Propensity score matching (PSM) 可以協助我們用統計的方法回答這類的問題。以下我們定義一個二元自變數（IV)
+Groupon 是一家致力於利用社交媒體協調團購的電子商務公司。為了取得購物折扣，Groupon團購會要求達到某種條件的最低要求，買家才能享有折扣，例如，最低購買人數。這類的最低購買條件是否會影響交易結果呢？Propensity score matching (PSM) 可以幫助我們用統計的方法回答此類的問題。以下我們定義一個二元自變數(Independent Varaible, IV)
 
-* **對照組**: 沒有最低購買人數要求的優惠券(0)
-* **處理組**: 具有最低購買人數要求的優惠券(1)
+* **對照組**: 無最低購買人數要求的優惠券(0)
+* **處理組**: 有最低購買人數要求的優惠券(1)
 
-範例資料 `groupon.csv` 有下示結構，其中包含三個依變數 ，分別是收入 、售出數量和獲得的臉書讚:
+範例資料 `groupon.csv` 有下示結構，其中包含三個依變數：收入 、售出數量和臉書讚數:
+
+```
+# <class 'pandas.core.frame.DataFrame'>
+# RangeIndex: 710 entries, 0 to 709
+# Data columns (total 13 columns):
+#  #   Column           Non-Null Count  Dtype 
+# ---  ------           --------------  ----- 
+#  0   deal_id          710 non-null    object
+#  1   start_date       710 non-null    object
+#  2   min_req          710 non-null    int64 
+#  3   treatment        710 non-null    int64 
+#  4   prom_length      710 non-null    int64 
+#  5   price            710 non-null    int64 
+#  6   discount_pct     710 non-null    int64 
+#  7   coupon_duration  710 non-null    int64 
+#  8   featured         710 non-null    int64 
+#  9   limited_supply   710 non-null    int64 
+#  10  fb_likes         710 non-null    int64 
+#  11  quantity_sold    710 non-null    int64 
+#  12  revenue          710 non-null    int64 
+# dtypes: int64(11), object(2)
+# memory usage: 72.2+ KB
+
+df = pd.read_csv('data/groupon.csv')
+df.info()
+
+
+grouped = df.groupby("treatment")
+grouped[["fb_likes", "quantity_sold", "revenue"]].mean()
+#                 fb_likes	quantity_sold	revenue
+#  treatment			
+#          0	77.941296	333.002024	9720.987854
+#          1	113.203704	509.351852	12750.694444
+```
+
+在開始分析前，我們先引入多項工具包，並自定二個函數。
 
 ```
 import numpy as np
@@ -46,39 +82,8 @@ def logit(p):
     # The logit function is defined as the logarithm of the odds of the probability p of a certain event occurring: 
     # Logit(p) = log(p / (1 - p)) 
     return math.log(p / (1 - p))
-
-df = pd.read_csv('data/groupon.csv')
-df.info()
-
-# <class 'pandas.core.frame.DataFrame'>
-# RangeIndex: 710 entries, 0 to 709
-# Data columns (total 13 columns):
-#  #   Column           Non-Null Count  Dtype 
-# ---  ------           --------------  ----- 
-#  0   deal_id          710 non-null    object
-#  1   start_date       710 non-null    object
-#  2   min_req          710 non-null    int64 
-#  3   treatment        710 non-null    int64 
-#  4   prom_length      710 non-null    int64 
-#  5   price            710 non-null    int64 
-#  6   discount_pct     710 non-null    int64 
-#  7   coupon_duration  710 non-null    int64 
-#  8   featured         710 non-null    int64 
-#  9   limited_supply   710 non-null    int64 
-#  10  fb_likes         710 non-null    int64 
-#  11  quantity_sold    710 non-null    int64 
-#  12  revenue          710 non-null    int64 
-# dtypes: int64(11), object(2)
-# memory usage: 72.2+ KB
-
-grouped = df.groupby("treatment")
-grouped[["fb_likes", "quantity_sold", "revenue"]].mean()
-#                 fb_likes	quantity_sold	revenue
-#  treatment			
-#          0	77.941296	333.002024	9720.987854
-#          1	113.203704	509.351852	12750.694444
-
 ```
+
 在未使用傾向評分進行配對前,t-test顯示，當優恵卷附加最低購買需求時，似乎和高收益、更多臉書讚、及售出更多商品是相關的。
 
 ```
