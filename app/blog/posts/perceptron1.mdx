@@ -71,7 +71,7 @@ str(d)
 ntrain <- 100
 X <- as.matrix(d[1:ntrain, c("Sepal_len", "Petal_len")])
 y <- as.matrix( ifelse(d[1:ntrain, "y"] == "Setosa", 0, 1) )
-
+# X is a 100 x 2 matrix; y is a 100 x 1 vector.
 ```
 
 下圖顯示Setosa及Versicolor依據花萼長及花瓣長的樣本分布。

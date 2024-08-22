@@ -1,41 +1,45 @@
 ---
-title: 'Perceptron - 以Fashion-MNIST為範例'
-publishedAt: '2024-08-20'
+title: 'Multi-layer Perceptron'
+publishedAt: '2024-08-22'
 summary: 'The post uses Fashion-MNIST to demonstrate one method to fit a Perceptron model.'
 ---
 
+本文以經典資料集Fashion-MNIST來說明 Multi-layer Perceptron (MLP) 的概念，及實現方法，並展示如何使用類神經網絡模型來執行一項多類別的分類作榮。
+
 # Fashion-MNIST
-[Fashion-MNIST](https://github.com/zalandoresearch/fashion-mnist)是一組經典的資料集，訓練組中有60,000筆，而測試組有10,000筆樣本，它們全為各類衣飾圖檔，共被分為十個類別，如class_names變數所記錄，在原始資料中，它們分別是用數值0到9來代表。我們可以再自訓練組中分派出10,000組做為Validation set。
+[Fashion-MNIST](https://github.com/zalandoresearch/fashion-mnist)是一組經典的資料集，原始資料分為訓練組及測試組，各組的特徵矩陣及目標向量分別被儲存為一個檔案，因此共有四個`gz`壓縮檔。原訓練組有60,000筆，測試組有10,000筆樣本。各筆資料為各類服飾圖檔的八位元的(0~255)像素值。
+
+這些服飾共被分類為十個種類，如class_names變數所記錄，原始資料是以0到9的整數來代表這十類服飾。
 
 ```
 from utils import mnist_reader
 from sklearn.preprocessing import LabelEncoder
 
-class_names = ["T-shirt/上衣", 褲子", "套衫", "裙子", "外套",
+class_names = ["短袖圓領汗衫/上衣", "褲子", "套衫", "裙子", "外套",
                "涼鞋", "襯衫", "運動鞋", "包包", "及踝靴"]
+```
 
+尚未進行建模前，我們通常會先檢視資料，例如，我們會使用`shape`函數檢閱資料集的矩陣向度，確認測試組及訓練組確是10,000及60,000筆。在`X_test`及`X`中每一列(row)代表一筆資料，每一欄(column)代表一個特徵值，在這個例子中，每一個特徵值是一圖檔中的一個像素值。八位元的圖檔在二維的平面上共有784個像素，若轉置為二維矩陣，每個圖檔其實是28 x 28。
 
-DATA_DIR = '../data/fashion_mnist'
-X, Y = mnist_reader.load_mnist(path=DATA_DIR, kind='t10k')
-X_train, Y_train = mnist_reader.load_mnist(path=DATA_DIR, kind='train')
+```
+X_test, Y_test = mnist_reader.load_mnist(path=DATA_DIR, kind='t10k')
+X, Y = mnist_reader.load_mnist(path=DATA_DIR, kind='train')
+X_test.shape, Y_test.shape, X.shape, Y.shape
+# ((10000, 784), (10000,), (60000, 784), (60000,))
 
-le = LabelEncoder()
-y_ = le.fit_transform(Y)
-print(le.classes_)
-print(np.bincount(Y))
+np.unique(Y, return_counts = True)
+# (array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=uint8),
+# array([1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000]))
 
-# [0 1 2 3 4 5 6 7 8 9]
-# [1000 1000 1000 1000 1000 1000 1000 1000 1000 1000]
+np.unique(Y_train, return_counts = True)
+# (array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=uint8),
+# array([6000, 6000, 6000, 6000, 6000, 6000, 6000, 6000, 6000, 6000]))
 
 ```
 
-使用shape函數，我們可以得知X是10,000 x 784的特徵矩陣，每一行代表一筆資料，共10,000筆，每一最(column)代表一個特徵值，共有784個特徵值，此784個特徵值其實是28*28的像素值。
+## 檢視圖檔內容
 
-```
-X[0, :].shape, 28*28, X.shape
-(784,), 784, (10000, 784))
-```
-
+首先我們將前幾個圖檔顯示在營幕上，確認這每一行確是各類服飾圖檔。第一步，我們先自定三個函數方便作業。
 
 ```
 from utils.helper import invert_grayscale
@@ -45,11 +49,11 @@ import os
 
 PROJECT_ROOT_DIR = "."
 IMAGES_PATH = os.path.join(PROJECT_ROOT_DIR, "images")
-# os.makedirs(IMAGES_PATH, exist_ok=True)
+os.makedirs(IMAGES_PATH, exist_ok=True)
 
 
 def convert2image_format(image):
-    mnist_digits = image # X[0,:]
+    mnist_digits = image # e.g. X[0,:]
     X0 = np.reshape(mnist_digits, (-1, 28, 28))
 
     X0_ = invert_grayscale(X0)
@@ -60,7 +64,7 @@ def convert2image_format(image):
 
 def convert2label_name(label):
     # Creating a sample array with float values
-    float_array = np.array(label) # np.array(Y[0:9])
+    float_array = np.array(label) # e.g. np.array(Y[0:9])
 
     # Converting float_array to integers
     out = np.array(class_names)[float_array.astype(int)]
@@ -72,24 +76,463 @@ def save_fig(fig_id, tight_layout=True, fig_extension="png", resolution=300):
     if tight_layout:
         plt.tight_layout()
     plt.savefig(path, format=fig_extension, dpi=resolution)
-
-
 ```
 
-
+第二步，我們使用`matplotlib`在營幕畫出第一筆資料。
 
 ```
 import matplotlib.pyplot as plt
+
 
 image0 = convert2image_format(X[0,:])
 label0 = convert2label_name(Y[0])
 plt.imshow(image0, cmap="binary", interpolation="nearest")
 plt.title(label0, fontsize=12)
-
-
 ```
 
 ![Boot](/boot.png "Boot")
 
+
+圖片顯示第一筆看起來確實像是支及踝靴。接下來我們將前9筆資料的類別標籤印出。注意Python連貫序號取件的習慣是不包含最後一個數值，所以`0:9`是取出0，1, 2, ..., 8。
+
+```
+class_names = ["短袖圓領汗衫/上衣", "褲子", "套衫", "裙子", "外套",
+               "涼鞋", "襯衫", "運動鞋", "包包", "及踝靴"]
+
+float_array = np.array(Y[0:9])
+int_array = float_array.astype(int)
+np.array(class_names)[int_array]
+
+# array(['及踝靴', '短袖圓領汗衫/上衣', '短袖圓領汗衫/上衣', '裙子', 
+#        '短袖圓領汗衫/上衣', '套衫', '運動鞋', '套衫', 
+#        '涼鞋'], dtype='<U9')
+```
+
+接下來我們看看前40筆。
+
+```
+n_rows = 4
+n_cols = 10
+plt.figure(figsize=(n_cols * 1.2, n_rows * 1.2))
+for row in range(n_rows):
+    for col in range(n_cols):
+        index = n_cols * row + col
+
+        image = convert2image_format(X[index,:])
+        label = convert2label_name(Y[index])
+        plt.subplot(n_rows, n_cols, index + 1)
+        plt.imshow(image, cmap="binary", interpolation="nearest")
+        plt.axis('off')
+        plt.title(label, fontsize=12)
+
+plt.subplots_adjust(wspace=0.2, hspace=0.5)
+save_fig('fashion_mnist_plot', tight_layout=False)
+plt.show()
+
+```
+
 ![Fashion-MNIST](/fashion_mnist_plot.png "Fashion MNIST")
 
+## Multi-layer Perceptron
+在Perceptron介紹中，我們實現了單層Perceptron的模型，每一個樣本的特徵值為輸入值，經過一線性迴歸方程式及一轉換方程式後，即得到輸出值。在MLP中，我們在輸入及輸出層之間，加入一或多層內部層(Hidden layer)，這些Hidden layers同樣進行線性迴歸運算，各層有其各自的權重及偏差向量，每一內部層的輸入值是它的上一層(可能是輸入層或是其他內部層)的輸出值。
+
+模型訓練的過程即是利用訓練組的資料，遞迴地調整每一層的權重及偏差向量，使模型所產生的預測值最接近訓練組的實際數值，並同時以驗證組檢查是否有Overfitting的現像。
+
+* _Overfitting是一數學建模的統計現象，它指的是所組建的模型，雖然預測訓練組非常地成功，但對驗證組的預測卻沒有和訓練組相近的成功率_。
+  
+## Softmax方程式
+
+透過改變最後的轉換方程式，我們可使用MLP來做多類別的分類作業(而非僅止於二元分類)，其中一個常用的轉換方程式是Softmax方程式。簡地地說，MLP中的一個節點的輸出值在未經轉換時是一個如同一般迴歸方程式得到的尋常的浮點數，和Logistic Regression類似，我們也可以用logit函數將MLP未處理的輸出值轉換為一個0至1之間的數值，並將之視為一個機率值。
+
+以Fashion-MNIST為例，我們有十個類別，所以我們可以給予輸出層10個神經節點，因此這10個節點會有10個浮點數，將這些浮點數經過logit函數處理，會變成10個機率值。
+
+這10個機率值便可表徵這10個服飾類別的模型預測機率，最後我們可以選出最高機率的那一個項目，作為模型的最終預測。這個選擇程序，常以`argmax`的符號表示，它代表取出在k (例如，10)個類別中數值最大的那個類別的序號 (注意是序號而非機率值)。
+
+* 在訓練MLP時，我們還會使用backpropagation。基本上，backpropagation指的是權重及偏差值的調整策略。古典調整的方式會由輸入，第一內部層，第二內部層等，至輸出層逐步地依序調整。backpropagation加入反向調整的步驟。它先從輸入層開始逐步地至移動到輸出層，調整各層的權重及偏差向量，然後再由輸出層反向至輸入層再調整一次各層的權重及偏差向量。
+  
+## 用Keras實現MLP模型
+
+我們先將原始資料的訓練組進一步分拆為訓練組及驗證組，同時將0至255的整數像素值除以255，將其以標準化的浮點數表示。
+
+```
+train_ratio = 0.80
+val_ratio = 0.20
+nsample = X.shape[0]
+
+train_size = int(train_ratio * nsample)
+val_size = int(val_ratio * nsample)
+X_train = X[:train_size,:]/255
+X_val = X[train_size:train_size + val_size, :]/255
+
+Y_train = Y[:train_size]
+Y_val = Y[train_size:train_size + val_size]
+
+
+print("The size of the train, validation and test are: ")
+print(X_train.shape, X_val.shape, X_test.shape) 
+print(Y_train.shape, Y_val.shape, Y_test.shape) 
+# The size of the train, validation and test are: 
+# (48000, 784) (12000, 784) (10000, 784)
+# (48000,) (12000,) (10000,)
+
+```
+
+接著，將模型描述以Keras的語法表示：
+
+```
+import tensorflow as tf
+from tensorflow import keras
+
+
+model = keras.models.Sequential([
+    keras.layers.Flatten(input_shape=[784]),
+    keras.layers.Dense(300, activation="relu"),
+    keras.layers.Dense(100, activation="relu"),
+    keras.layers.Dense(10, activation="softmax")
+])
+```
+
+
+`model.summary()`的函數可以用來顯示模型摘要，在此我們使用的兩個內部層，最後的輸出層指派了10個節點，並用softmax將這10個節點得到的數值轉換為0~1的機率值。
+
+```
+┏━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)          ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ flatten_1 (Flatten)   │ (None, 784)            │             0 │
+├───────────────────────┼────────────────────────┼───────────────┤
+│ dense_3 (Dense)       │ (None, 300)            │       235,500 │
+├───────────────────────┼────────────────────────┼───────────────┤
+│ dense_4 (Dense)       │ (None, 100)            │        30,100 │
+├───────────────────────┼────────────────────────┼───────────────┤
+│ dense_5 (Dense)       │ (None, 10)             │         1,010 │
+└───────────────────────┴────────────────────────┴───────────────┘
+
+```
+
+此模型共有784 x 300 + 300 x 100 + 100 x 10 + (300 + 100 + 10) = 266610個參數。參數個數的計算方式是：
+
+1. 每一對特徵值個自分配一個節點，例如輸入層有784個節點，每一個節點會和下一層的每各節點各有一條連接網絡，每一個連接處會有一個權重參數，所以輸入層和第一內部層之間有784 x 300個參數
+2. 每一個神經層都會配置一個偏差值節點，此節點與它下一層的神經層的每一個節點也都有一條連接網絡，各自也有它們的權重參數，所以輸入層和第一內部層之間須再加上300個參數。
+3. 我們可以用`model.count_params()`函數直接印出參數數量。
+
+接下來我們必須決定一個 Loss函數、參數最佳化的演算法以及評量模型表現的指標(Metric)，在此我們來 sparse_categorical_crossentropy, Stochastic Gradient Descend 及正確率，三種常用在多類別作業的方法。
+
+```
+model.compile(loss="sparse_categorical_crossentropy",
+              optimizer="sgd",
+              metrics=["accuracy"])
+```
+
+最後我們便可以開始訓練MLP模型，取決於資料量及模型的複雜程序，此步驟可能會費時很久。
+
+```
+model_fit = model.fit(X_train, Y_train, epochs=30,
+                    validation_data=(X_val, Y_val))
+```
+
+## 檢視訓練完成的模型
+
+將訓練結果轉存為data frame的格式。
+
+```
+df = pd.DataFrame(model_fit.history)
+print(df.head())
+#    accuracy      loss  val_accuracy  val_loss
+# 0  0.752021  0.750691      0.824833  0.524398
+# 1  0.828271  0.498905      0.839083  0.464007
+# 2  0.843063  0.450346      0.849917  0.440772
+# 3  0.853625  0.421833      0.855083  0.420208
+# 4  0.858813  0.403210      0.859250  0.402164
+
+# Shift the training metrics half an epoch to the left
+df['accuracy'] = df['accuracy'].shift(-1)
+df['loss'] = df['loss'].shift(-1)
+
+# Drop the last row as it will have NaN values after the shift
+df = df.dropna()
+
+
+```
+
+下圖顯示MLP模型對訓練組和驗證組的資料的預測準確度隨著每一次遞迴愈來愈高，而預測值和實際值的差距也愈來愈小。
+須注意到的是訓練過程MLP的參數調整是完全根據訓練組的資料，驗證組的資料對模型而言是完全陌生的，因此會在下圖中驗證組顯現部份鋸齒狀的變化(正確率不昇反減)。
+
+![Model_fit](/keras_learning_curves_plot.png "Model_fit")
+
+接下來我們用此已經建立的模型來預測測試組的資料。正確率達88.3%。
+
+```
+X_test_std = X_test/255
+model.evaluate(X_test, Y_test)
+
+# 313/313 ━━━━━━━━━━━━━━━━━━━━ 1s 2ms/step  
+# accuracy: 0.8834 - loss: 0.3325
+
+```
+
+最後我們來檢閱一下為何仍有近12%的圖片難以歸類成功
+
+```
+import numpy as np
+
+
+predicted_y_proba = model.predict(X_test_std)
+predicted_classes = np.argmax(predicted_y_proba, axis=1)
+# true_classes = np.argmax(Y_test, axis=1)
+
+# Find the indices of incorrect predictions
+incorrect_indices = np.where(predicted_classes != Y_test)[0]
+
+class_names = ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
+               "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]
+
+n_rows = 4
+n_cols = 5
+plt.figure(figsize=(n_cols * 3, n_rows * 3))
+for row in range(n_rows):
+    for col in range(n_cols):
+        index = n_cols * row + col
+        incorrect_index = incorrect_indices[index]
+
+        image = convert2image_format(X_test[incorrect_index,:])
+        label_data = convert2label_name(Y_test[incorrect_index], class_names)
+        label_pred = convert2label_name(predicted_classes[incorrect_index], class_names)
+        combined_label = f"{label_data}/{label_pred}"
+
+
+        plt.subplot(n_rows, n_cols, index + 1)
+        plt.imshow(image, cmap="binary", interpolation="nearest")
+        plt.axis('off')
+        plt.title(combined_label, fontsize=12)
+        
+plt.subplots_adjust(wspace=0.2, hspace=0.5)
+save_fig('incorrect_prediction_fashion_mnist_plot', tight_layout=False)
+plt.show()
+```
+
+![錯誤預測的例子](/incorrect_prediction_fashion_mnist_plot.png "Error_prediction")
+
+這些例子中，確實有一些圖片，即使是由人們去評判仍可能會做錯誤的歸類。
+
+## 結論
+
+## 延申問題 
+1. 內部層的節點數該如何選擇？
+
+在上面的例子中，我們在第一內部層使用了300個節點，第二內部層使用了100個節點。但真有需要使用如此多的節點嗎？在此例中，當我們在第一及第二內部層只使用50及25節點，也可以達到相近的效果。
+
+```
+model = keras.models.Sequential([
+    keras.layers.Flatten(input_shape=[784]),
+    keras.layers.Dense(50, activation="relu"),
+    keras.layers.Dense(25, activation="relu"),
+    keras.layers.Dense(10, activation="softmax")
+])
+```
+
+![Model_fit2](/keras_learning_curves_plot_small.png "Model_fit2")
+
+
+2. 內部層的Activation函數一定得是ReLu函數嗎？
+
+## 參考資料
+* Géron, A. (2022). Hands-on machine learning with Scikit-Learn, Keras, and TensorFlow. " O'Reilly Media, Inc.".
+
+
+## 附件一、Plotting Methods for the Loss and Accuracy
+```
+# Plotting
+df = model_fit_df
+plt.figure(figsize=(12, 6))
+
+# Plot accuracy
+plt.subplot(1, 2, 1)
+plt.plot(df['accuracy'], '-o', label='Training Accuracy')
+plt.plot(df['val_accuracy'], '-o', label='Validation Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.title('Training and Validation Accuracy')
+
+plt.grid(True)
+
+# Plot loss
+plt.subplot(1, 2, 2)
+plt.plot(df['loss'], '-o', label='Training Loss')
+plt.plot(df['val_loss'], '-o', label='Validation Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+plt.title('Training and Validation Loss')
+
+plt.grid(True)
+
+plt.tight_layout()
+
+save_fig("keras_learning_curves_plot")
+plt.show()
+
+```
+
+
+## 附件二、使用Pytorch實現類似的MLP模型
+
+
+```
+import torch
+from torch.utils.data import Dataset, DataLoader
+
+# Assuming X, Y, X_test, Y_test are your NumPy arrays
+X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+Y_train_tensor = torch.tensor(Y_train, dtype=torch.long)
+X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
+Y_test_tensor = torch.tensor(Y_test, dtype=torch.long)
+X_val_tensor = torch.tensor(X_val, dtype=torch.float32)
+Y_val_tensor = torch.tensor(Y_val, dtype=torch.long)
+
+class FashionMNISTDataset(Dataset):
+    def __init__(self, data, targets):
+        self.data = data
+        self.targets = targets
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        x = self.data[index]
+        y = self.targets[index]
+        return x, y
+
+# Create dataset instances
+train_dataset = FashionMNISTDataset(X_train_tensor, Y_train_tensor)
+val_dataset = FashionMNISTDataset(X_val_tensor, Y_val_tensor)
+test_dataset = FashionMNISTDataset(X_test_tensor, Y_test_tensor)
+
+# Create data loaders
+nbatch = 8
+train_loader = DataLoader(train_dataset, batch_size=nbatch, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=nbatch, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=nbatch, shuffle=False)
+
+# Example of iterating through the data loader
+for inputs, labels in train_loader:
+    print(inputs.shape, labels.shape)
+    break
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class MyModel(nn.Module):
+    def __init__(self):
+        super(MyModel, self).__init__()
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Linear(784, 300)
+        self.fc2 = nn.Linear(300, 100)
+        self.fc3 = nn.Linear(100, 10)
+
+    def forward(self, x):
+        x = self.flatten(x)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.softmax(self.fc3(x), dim=1)
+        return x
+
+model = MyModel()
+
+# Define a loss function and an optimizer
+loss_fn = nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+
+def train(model, num_epochs, train_dl, valid_dl):
+ 
+    loss_hist_train = [0] * num_epochs
+    accuracy_hist_train = [0] * num_epochs
+    loss_hist_valid = [0] * num_epochs
+    accuracy_hist_valid = [0] * num_epochs
+ 
+    for epoch in range(num_epochs):
+        model.train()
+
+        for inputs, labels in train_dl:
+            # Zero the parameter gradients
+            optimizer.zero_grad()
+
+           # Forward pass
+            pred = model(inputs)
+            loss = loss_fn(pred, labels)
+
+            # Backward pass and optimize
+            loss.backward()
+            optimizer.step()
+
+            loss_hist_train[epoch] += loss.item()*labels.size(0)
+            is_correct = (torch.argmax(pred, dim=1) == labels).float()
+            accuracy_hist_train[epoch] += is_correct.sum().cpu()
+
+        loss_hist_train[epoch] /= len(train_dl.dataset)
+        accuracy_hist_train[epoch] /= len(train_dl.dataset)
+
+        model.eval()
+
+        with torch.no_grad():
+            for inputs, labels in valid_dl:
+                pred = model(inputs)
+                loss = loss_fn(pred, labels)
+                loss_hist_valid[epoch] += loss.item()*labels.size(0) 
+                is_correct = (torch.argmax(pred, dim=1) == labels).float() 
+                accuracy_hist_valid[epoch] += is_correct.sum().cpu()
+
+        loss_hist_valid[epoch] /= len(valid_dl.dataset)
+        accuracy_hist_valid[epoch] /= len(valid_dl.dataset)
+        print(f'Epoch {epoch+1} train vs validation [accuracy; loss]: {accuracy_hist_train[epoch]:.2f} vs {accuracy_hist_valid[epoch]:.2f}; {loss_hist_train[epoch]:.2f} vs {loss_hist_valid[epoch]:.2f}')    
+
+    return loss_hist_train, loss_hist_valid, accuracy_hist_train, accuracy_hist_valid
+
+torch.manual_seed(1)
+num_epochs = 100
+hist = train(model, num_epochs, train_loader, val_loader)
+
+# Epoch 97 train vs validation [accuracy; loss]: 0.81 vs 0.81; 1.66 vs 1.66
+# Epoch 98 train vs validation [accuracy; loss]: 0.81 vs 0.81; 1.66 vs 1.66
+# Epoch 99 train vs validation [accuracy; loss]: 0.81 vs 0.81; 1.66 vs 1.66
+# Epoch 100 train vs validation [accuracy; loss]: 0.81 vs 0.81; 1.66 vs 1.66
+```
+
+Show the fitting results.
+
+```
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+x_arr = np.arange(len(hist[0])) + 1
+
+fig = plt.figure(figsize=(12, 6))
+ax = fig.add_subplot(1, 2, 1)
+ax.plot(x_arr, hist[0], '-o', label='Train loss')
+ax.plot(x_arr, hist[1], '--<', label='Validation loss')
+ax.set_xlabel('Epoch', size=15)
+ax.set_ylabel('Loss', size=15)
+ax.legend(fontsize=15)
+
+plt.grid(True)
+plt.tight_layout()
+
+
+ax = fig.add_subplot(1, 2, 2)
+ax.plot(x_arr, hist[2], '-o', label='Train acc.')
+ax.plot(x_arr, hist[3], '--<', label='Validation acc.')
+ax.legend(fontsize=15)
+ax.set_xlabel('Epoch', size=15)
+ax.set_ylabel('Accuracy', size=15)
+
+plt.grid(True)
+plt.tight_layout()
+
+save_fig("PyTorch_MLP")
+plt.show()
+```
+
+![Model_fit3](/PyTorch_MLP.png "Model_fit3")
