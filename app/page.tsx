@@ -4,8 +4,13 @@ export default function Page() {
   return (
     <section>
       <h1 className='text-2xl font-semibold tracking-tighter'>
-        此網誌記錄一些統計、數學建模及機器學習的理論方法，這些理論包含了心理學的視覺搜尋研究，類神經網絡的研究中如何自這些心理學及認知科學的生物神經學研究，發展出「類」神經的人工智慧模型。
+        From Theory to Code: Statistical Programming
       </h1>
+      <br/>
+      <p>
+      此網誌將帶您一窺心理學、心理語言學和認知科學如何攜手形塑人工智慧的未來。從視覺搜尋、認知分類到決策，我們將深入探討人類這台超級電腦的運作機制。
+      </p>
+     
       <div className="my-8">
         <BlogPosts />
       </div>
