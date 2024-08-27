@@ -1,0 +1,209 @@
+---
+title: 'Convolutional Neural Network簡介一'
+publishedAt: '2024-08-24'
+summary: 'The post uses the Chest X-ray dataset to demonstrate when the MLP does not result in an over-than-80% accuracy.'
+---
+
+Convolutional neural network (CNN)是類神經網絡架構的一類, 相對於全連接的網絡(如MLP)，CNN架構中加入二種新的神經層，它們分別是Pooling layer及 Convolutional layer。
+
+## 視域及Convolution Layer
+
+**Convolutional layer**指的是類神經層之間的節點連接是部份連結，且節點間的訊息傳遞是透過一種稱為Convolution的演算方式而達成的。Convolutional layer的部份連結是模仿生物的視神經皮質，如V1, V2層的發現。有趣的是，Convolution其實是一項線性代數中常用的基礎數學運算，以下我們將分節說明。
+
+具體來說，輸入層的節點雖然仍然是用來表徵外界的圖片(例如每一個特徵像素對應一個輸入節點)，內部層的每一個神經節點接收的前一層節點訊息是來自於到某一個範圍，就如類似於視神經皮質的視域(Receptive Field)的機制。
+
+**視域**指的是自視網膜開始，相對於一個神經節點可以接收到前一神經層所有節點的訊息，在Convolutional layer，每一個神經節點是將前一神經層的某一小塊的感知區域的訊息彙集。所以，在CNN中，每一個神經節點和前一層並非是節點對節點的連接，而是節點對視域的連接。
+
+## Convolution 
+
+**Convolution** 可被視為加、減、乘、除外的另一種數值運算方法，和傳統的數值運算不同的是，Convolution是使用在向量或是二維以上的tensor的數值運算方法，基本上，Convolution運算有兩主要步驟：(1)於運算時，規律地在輸入向量做移動，之後據此取出輸入向量中某一段數值；(2)將此部分輸入向量和 Kernel向量的反轉進行點乘積。以下我們用一個簡單的例子來具體地說明此概念。
+
+比方說，我們決定移動距離是二個數值 (shift = 2)，輸入向量是，x = [3, 2, 1, 7, 1, 2, 5, 4]，kernal向量是 w = [1/2, 3/4, 1, 1/4], 若進行Convolution的運算，輸出向量會是？
+
+```
+x = [3, 2, 1, 7, 1, 2, 5, 4]
+w = [1/2, 3/4, 1, 1/4]
+wr = w[::-1]  # Python將一維向量反轉的語法
+
+print(w, wr)
+# ([0.5, 0.75, 1, 0.25], [0.25, 1, 0.75, 0.5])
+
+p = 0
+zero_pad = np.zeros(shape=p)
+x_p = np.concatenate([zero_pad, x_p, zero_pad])
+
+
+n = len(x)
+n_p = len(x_p)
+m = len(w_r)
+
+```
+
+我們可以使用雙層的for loop顯示計算的過程：
+
+```
+import numpy as np
+
+y = np.zeros(3)
+s = 2
+irange = range(0, 5, s)
+
+
+for i, ielement in enumerate(irange):
+    idx = range(ielement, ielement + m)
+    print(i, idx)
+    for j, jelement in enumerate(idx):
+        print(j, x[jelement])
+        y[i] += x[jelement] * wr[j]
+    print('-----------------------------')
+    print(y[i])
+    print('-----------------------------')
+
+# 0 range(0, 4)
+# 0 3
+# 1 2
+# 2 1
+# 3 7
+# -----------------------------
+# 7.0
+# -----------------------------
+# 1 range(2, 6)
+# 0 1
+# 1 7
+# 2 1
+# 3 2
+# -----------------------------
+# 9.0
+# -----------------------------
+# 2 range(4, 8)
+# 0 1
+# 1 2
+# 2 5
+# 3 4
+# -----------------------------
+# 8.0
+# -----------------------------
+
+```
+
+### 輸出向量的長度
+前例子，我們尚未提到的輸出向量的長度是如何決定的，輸出向量長度和padding的長度是相關的。在CNN的應用中，較為常見是儘可能維持輸出向量和輸入向量的長度一致，因此會使用到`same` padding的方法。在此情況，輸出向量長度可以用如下程式碼來計算它。
+
+```
+# // is a floor division operator
+output_length = (n + 2*p - m)//s + 1 
+y = np.zeros(output_length)
+
+irange = range(0, n_p - m + 1, s)
+idx_list = [list(range(ielement, ielement + m)) for ielement in irange]
+idx_list
+
+for i in range(output_length):
+    y[i] = np.sum(x_p[idx_list[i]] * w_r)
+
+
+```
+
+將上面的程序，彙集為一個函式，我們可以得到一維的convolution運算元：
+
+```
+def my_conv1d(x, w, p=0, s=1):
+    w_r = np.array(w[::-1])
+    x_p = np.array(x)
+        
+    if p > 0:
+        zero_pad = np.zeros(shape=p)
+        x_p = np.concatenate([zero_pad, x_p, zero_pad])
+
+    n, n_p, m = len(x), len(x_p), len(w_r)
+    output_length = (n + 2*p - m)//s + 1 
+    y = np.zeros(output_length)
+    irange = range(0, n_p - m + 1, s)
+
+    idx_list = [list(range(ielement, ielement + m)) for ielement in irange]
+    for i in range(output_length):
+        y[i] = np.sum(x_p[idx_list[i]] * w_r)
+
+    return y    
+```
+
+## 二維的Convolution
+
+二維的Convolution運算元雖然仍基於相同的原則，其計算及結構整理過程變得相當繁複，因此當資料量大，計算速度事關重要時，多數時候人們是採用廣用的現成程序，如下`scipy.signal`套件中的程序，來進行Convolution運算，以下展示兩種方法。
+
+```
+import scipy.signal
+import numpy as np
+
+
+def conv2d(X, W, p=(0, 0), s=(1, 1)):
+    W_rot = np.array(W)[::-1, ::-1]
+    X_orig = np.array(X)
+
+    n1 = X_orig.shape[0]
+    n2 = X_orig.shape[1]
+    m1 = W_rot.shape[0]
+    m2 = W_rot.shape[1]
+    n_p1 = n1 + 2*p[0]
+    n_p2 = n2 + 2*p[1]
+
+    X_padded = np.zeros(shape=(n_p1, n_p2))
+    X_padded[p[0]:p[0] + n1, 
+             p[1]:p[1] + n2] = X_orig
+
+    res = []
+    for i in range(0, int((n_p1 - m1)/s[0]) + 1, s[0]):
+        res.append([])
+
+        for j in range(0, int((n_p2 - m2)/s[1]) + 1, s[1]):
+            x_sub = x_padded[i:i+m1, j:j+m2]
+            res[-1].append(np.sum(x_sub * W_rot))
+
+    return (np.array(res))
+
+
+W = np.array([[0.5, 0.7, 0.4], [0.3, 0.4, 0.1], [0.5, 1, 0.5]])
+X = np.array([[2, 1, 2], [5, 0, 1], [1, 7, 3]], float)
+
+res = conv2d(X, W, p = (1, 1))
+# res = scipy.signal.convolve2d(X, W, mode='same')
+
+# array([[ 4.6,  3.7,  1.6],
+#        [ 8.7, 10.6,  7.8],
+#        [ 7.5,  6.8,  2.9]])
+
+```
+## CNN的Pooling概念
+
+CNN的網絡架構除了引進了Convolutional layer外，還添加了另一項新的神經層，稱為Pooling layer。Pooling神經層不做任何數值轉換，僅做數值彙集。它有兩種常用的數值彙集方式：Max pooling及Mean pooling。
+
+**Max pooling**的彙集方式是從某一區域的數值中，找出其中的最大值，而此值則為此區域節點的輸出到下一神經層的數值。
+
+**Mean pooling**的彙集方式是從某一區域的數值中，找出其中的平均值，而此值則為此區域節點的輸出到下一神經層的數值。
+
+```
+x = np.array([[2, 1, 7, 1, 2, 5], [5, 0, 3, 4, 1, 2], [1, 7, 8, 3, 3, 0],
+              [0, 3, 2, 0, 1, 1], [6, 2, 5, 3, 0, 3], [3, 6, 0, 2, 1, 0]], float)
+
+# array([[2., 1., 7., 1., 2., 5.],
+#        [5., 0., 3., 4., 1., 2.],
+#        [1., 7., 8., 3., 3., 0.],
+#        [0., 3., 2., 0., 1., 1.],
+#        [6., 2., 5., 3., 0., 3.],
+#        [3., 6., 0., 2., 1., 0.]])
+
+from skimage.measure import block_reduce
+
+max_pooling = block_reduce(x, (3, 3), np.max)
+mean_pooling = block_reduce(x, (3, 3), np.mean)
+max_pooling, mean_pooling
+
+# (array([[8., 5.],
+#         [6., 3.]]),
+# array([[3.77777778, 2.33333333],
+#        [3.        , 1.22222222]]))
+
+
+```
+(未完續待)
+
