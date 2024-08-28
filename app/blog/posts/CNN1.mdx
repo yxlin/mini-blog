@@ -282,9 +282,41 @@ Convolutional layer 的計算方式和MLP類似，在之前我們介紹MLP時用
 
 * y = A(x × w<sup>t</sup> + b)
   
-我們僅須將向量符號轉換為矩陣符號，並將相乘的運算，置換為Convolution的運算，便可得到Convolutional layer的運算：
+我們僅須將向量符號換為矩陣符號，並將相乘的運算，換為Convolution的運算，便可得到Convolutional layer的運算：
 
 * Y = A(X * W + b)
 
 同樣地，此計算結果最後也會經過一轉換方程式(Activation function, **A**)，才會得到最終數值，在Convolutional layer中權重矩陣是即是Convolution運算時的kernel；每一個輸出的特徵地圖會對應一個偏差值。
 
+
+### 如何計算參數數量？
+我們可以用下面一簡單的CNN模型為例來了解參數計算方法。
+
+```
+model = keras.models.Sequential([
+    keras.layers.Conv2D(filters=5, kernel_size=7, activation='relu', 
+                        padding="SAME", input_shape=[28, 28, 3]),
+    keras.layers.MaxPooling2D(2),
+])
+
+model.summary()
+```
+
+上面的Keras的語法指的是：
+1. 設置一層Convolutional layer，此類神經層將會接收的輸入影像是28 x 28的矩陣，而每個影像有三個頻道；此類神經層會使用5個kernel，每個kernel是 7 x 7的矩陣，在Convolution的運算時使用 `same` zero padding的方法，使用ReLu的Activation function。
+2. 設置一層Pooling layer，此類神經層，使用Max pooling的方法彙集前一層的訊息，並縮減節點數一半。
+   
+參數總量的計算是：7 x 7 x 3 x 5個權重參數，加上 5個偏差參數，最後得到740個參數。
+
+
+
+```
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer          ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ Conv2D         │ (None, 28, 28, 5)      │           740 │
+├────────────────┼────────────────────────┼───────────────┤
+│ MaxPooling2D   │ (None, 14, 14, 5)      │             0 │
+└───────────── ──┴────────────────────────┴───────────────┘
+
+```
