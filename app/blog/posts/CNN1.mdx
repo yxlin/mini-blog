@@ -6,7 +6,7 @@ summary: 'The post briefly introduce some key concepts in the CNN.'
 
 Convolutional neural network (CNN)是類神經網絡架構的一類, 相較於完全連接的類神經網絡(如MLP)，CNN網絡在全連接的神經層中加入二種新的神經層：_Pooling layer_ 及 _Convolutional layer_。
 
-## 視域，特徵地圖及Convolution層 
+# 視域，特徵地圖及Convolution層 
 
 <span style={{color: 'darkblue'}}> Convolutional layer </span> 指的是類神經層之間的節點連接是部份連結，此概念是模仿生物的視神經皮質，如V1, V2層的發現，此外，此類神經層的數值運算是透過一種稱為Convolution的演算方式而達成的。這兩點異於全連結的類神經網絡，具體地說，在MLP中，每一個類神經層的演算是將輸入向量與權重向量進行[_內積_](https://zh.wikipedia.org/zh-tw/%E7%82%B9%E7%A7%AF) (dot product)，但是Convolutional layer是進行Convolution的運算。
 
@@ -26,14 +26,14 @@ Convolution是一項線性代數中常用的矩陣代數的演算方法，以下
    
 CNN架構模仿此視覺搜尋的概念，使用同樣的術語「特徵地圖」，但其實現方式略有不同。比方說，當一個28 x 28的灰階影像輸入一層Convoluional layer後，它可能會被分為32個不同的 _特徵地圖_。異於認知科學，在類神經網絡中，這32個特徵地圖是表徵那些基礎的視知覺訊息並非重點所在，類神經網絡的重點在於，在模型最佳化的過程中如何找到最適當的權重參數，最適當的特徵地圖數量，使模型預測率儘可能愈高。
 
-## Convolution 
+# Convolution 
 
 **Convolution** 可被視為加、減、乘、除外的另一種數值運算方法，和傳統的數值運算不同的是，Convolution是使用在向量或是二維以上的矩陣的數值運算方法，基本上，Convolution運算有兩主要步驟：
 
 1. 於運算時，規律地在輸入向量做移動，之後據此取出輸入向量中某一段數值；
 2. 將此部分輸入向量和 Kernel向量的反轉進行向量內積的運算。
    
-以下我們用一個簡單的例子來具體地說明此概念。比方說，我們決定移動距離是二個數值 (shift = 2)，輸入向量是，x = [3, 2, 1, 7, 1, 2, 5, 4]，kernal向量是 w = [1/2, 3/4, 1, 1/4], 若進行Convolution的運算，輸出向量會是？
+以下我們用一個簡單的例子來具體地說明此概念。比方說，我們決定移動距離是二個數值 (shift = 2)，輸入向量是，x = [3, 2, 1, 7, 1, 2, 5, 4]，kernel向量是 w = [1/2, 3/4, 1, 1/4], 若進行Convolution的運算，輸出向量會是？
 
 ```
 x = [3, 2, 1, 7, 1, 2, 5, 4]
@@ -103,7 +103,7 @@ for i, ielement in enumerate(irange):
 
 ```
 
-### 輸出向量的長度
+## 輸出向量的長度
 前例中，我們尚未提到的輸出向量的長度是如何決定的，輸出向量長度和zero padding的長度息息相關。在CNN的應用中，較為常見的應用是儘可能維持輸出向量和輸入向量的長度一致，或是變短，此策略稱為`same padding`。在此情況下，輸出向量長度可以用如下程式碼來計算它。
 
 ```
@@ -144,7 +144,7 @@ def my_conv1d(x, w, p=0, s=1):
     return y    
 ```
 
-## 二維的Convolution
+# 二維的Convolution
 
 二維的Convolution運算元雖然仍基於相同的原則，其計算及結構整理過程變得相當繁複，因此當資料量大，計算速度事關重要時，多數時候人們是採用廣用的現成程序，如下`scipy.signal`套件中的程序，來進行Convolution運算，以下展示兩種方法。
 
@@ -190,7 +190,8 @@ res = conv2d(X, W, p = (1, 1))
 #        [ 7.5,  6.8,  2.9]])
 
 ```
-## Pooling layer
+
+# Pooling layer
 
 CNN的網絡架構除了引進了Convolutional layer外，還添加了另一項新的神經層，稱為Pooling layer。Pooling神經層不做任何數值轉換，僅做數值彙集。它有兩種常用的數值彙集方式：Max pooling及Mean pooling。
 
@@ -223,12 +224,12 @@ max_pooling, mean_pooling
 
 ```
 
-## 影像頻道
+# 影像頻道
 一張尋常的影像常包含了多個不同的頻道，例如彩色圖片經常被分為紅藍綠(RGB)三色頻道，如下圖所示。
 
 ![channels](/image_channels.png)
 
-因此通常在進行影像辨識時，輸入層還會有頻道數的維度，且每個頻道各自有其權重矩陣(kernal)，例如上圖的影像檔的像素值包含了三個600 x 800的矩陣，代表著，長 x 寬 x 影像頻道數 (n1 x n2 x n_channel)。相對應地，權重矩陣也須設置為三維，例如 m1 x m2 x n_channel。除此之外，若我們希望將Convolutional layer輸出多個特徵地圖時, kernal須再增設一個維度，成為四維的tensor，如 m1 x m2 x n_channel x n_feature_map。
+因此通常在進行影像辨識時，輸入層還會有頻道數的維度，且每個頻道各自有其權重矩陣(kernel)，例如上圖的影像檔的像素值包含了三個600 x 800的矩陣，代表著，長 x 寬 x 影像頻道數 (n1 x n2 x n_channel)。相對應地，權重矩陣也須設置為三維，例如 m1 x m2 x n_channel。除此之外，若我們希望將Convolutional layer輸出多個特徵地圖時, kernel須再增設一個維度，成為四維的tensor，如 m1 x m2 x n_channel x n_feature_map。
 
 
 ```
@@ -277,7 +278,7 @@ plt.show()
 
 ```
 
-## CNN演算方法
+# CNN演算方法
 Convolutional layer 的計算方式和MLP類似，在之前我們介紹MLP時用如下公式代表MLP的演算方式：
 
 * y = A(x × w<sup>t</sup> + b)
@@ -289,7 +290,7 @@ Convolutional layer 的計算方式和MLP類似，在之前我們介紹MLP時用
 同樣地，此計算結果最後也會經過一轉換方程式(Activation function, **A**)，才會得到最終數值，在Convolutional layer中權重矩陣是即是Convolution運算時的kernel；每一個輸出的特徵地圖會對應一個偏差值。
 
 
-### 如何計算參數數量？
+## 如何計算參數數量？
 我們可以用下面一簡單的CNN模型為例來了解參數計算方法。
 
 ```
@@ -320,3 +321,26 @@ model.summary()
 └───────────── ──┴────────────────────────┴───────────────┘
 
 ```
+
+## Dropout
+
+當我們訓練一個模型時，我們希望它能夠學習到資料中的規律，以便對新的資料做出準確的預測。然而，如果模型過於專注於記憶訓練資料中的細節，反而會忽略了更一般的規律。這種現象稱為過度擬合(Overfitting)。Overfitting的模型就像是一個死記硬背的學生，雖然能在考試中取得高分，但卻無法應用所學知識解決新的問題。訓練組的資料便如同學生死記硬背的考試試題，而驗證組及測試組資料便如新的問題。
+
+**Dropout**是用來處理Overfitting問題的一種方法，它指的是在訓練的過程中將某些內部層的節點暫時移除，例如在下例中，有自神經層三至神經層四之間，層三有會隨機的選出一半節點會被暫時移除。
+
+```
+model = keras.models.Sequential([
+    keras.layers.Conv2D(filters=5, kernel_size=7, activation='relu', 
+                        padding="SAME", input_shape=[28, 28, 3]), # Layer 1
+    keras.layers.MaxPooling2D(2),  # Layer 2
+    keras.layers.Flatten(),
+    keras.layers.Dense(units=128, activation='relu'), # Layer 3
+    keras.layers.Dropout(0.5),
+    keras.layers.Dense(units=64, activation='relu'), # Layer 4
+])
+
+```
+
+# 小結
+
+CNN借由模仿生物的視神經機制介紹了許多新的概念，並將這些概念實現於數值演算中，除了以上的簡介外，實際計算時，演算法設計者還必須考量矩陣上數值的配置方法，以及計算的效率，幸運的是，上述介紹的常用機制在Keras及PyTorch套件中都有不同的實作函數可使用，在下一個文章中，我們將以實際的例子來討論如何使用CNN的進行影像辨識。

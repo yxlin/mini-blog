@@ -1,27 +1,20 @@
 ---
-title: 'Perceptron - 介紹'
+title: 'Perceptron'
 publishedAt: '2024-08-19'
 summary: 'The post explains the matching procedure of one convariate to an independent variable.'
 ---
 
 Perceptron 是類神經網絡最基本的架構之一，它的特性是：
 
-1. 計算方式為輸入向量乘權重向量，再加上一偏差值 y = x × w<sup>t</sup> + b
-
-{/* ($\mathbf{z} = \mathbf{x} \mathbf{w}^t + b$) */}
-
-2. 單元輸出最後再經過一轉換方程式，稱為Linear Threshold Unit (LTU)，常用的有Heaviside和sign方程式。
-
-3. 步驟1及步驟2反覆進行，每一次反覆調整權重向量的數值，調整的標的是使Perceptron模型的預測值和資料值之間的表距愈小愈好。輸入向量如果以行向量(row vector)表示，例如，x = [1, 1, 1, 1, 1]
-是一個1 x 5的向量，此一行代表一個樣本，五個列代表五個特徵值。此時權重向量若是，w = [-0.002, 0.0059, 0.0078, 0.0194, 0.0170]
-我們必須將之行進矩陣轉置 w<sup>t</sup>.
-{/* $\mathbf{b} = [1, 1, 1, 1, 1]$  */}
-{/* $\mathbf{w} = [-0.002, 0.0059, 0.0078, 0.0194, 0.0170]$， */}
-{/* $\mathbf{w}^t$ */}
+1. 計算方式為輸入向量 (x) 乘上權重向量 (w)，再加上一偏差值 (b)，再經過一轉換方程式 (A)， y = A(x × w<sup>t</sup> + b)
+2. 在Perceptron中，轉換方程式有時稱為Linear Threshold Unit (LTU)，常用的有Heaviside和sign函數。
+3. 步驟1及步驟2會置於一個For loop中重覆施行，每一次遞迴時，調整權重向量的數值，調整的目標是使模型預測值和測試組的資料值之間的距離愈小愈好。
+   
+如果輸入向量是一個 1 x 5 的行向量(row vector)，如，x = [1, 1, 1, 1, 1]，此一行代表一個資料樣本，五個欄代表五個特徵值。此時相對應的權重向量若也是一個行向量，w = [-0.002, 0.0059, 0.0078, 0.0194, 0.0170]，我們必須將之行進矩陣轉置 w<sup>t</sup>.
 
 ![wt](/wt.png)
 
-如此才能進行矩陣向乘x × w<sup>t</sup> 得到一個1 × 1的矩陣之後，加上僅有單一數值的偏差值 b，而後此數值再經過LTU的轉換，LTU可以是。
+如此才能進行矩陣向乘x × w<sup>t</sup> 。進行內積後，我們會得到一個1 × 1的矩陣之後，加上單一數值的偏差值 b，便可得到未轉換前的數值，而後此數值再經過LTU轉換，便會得到輸出值。以下是常用的兩個LTU函數。
 
 ![heavside](/heavside.png)
 
@@ -29,7 +22,7 @@ Perceptron 是類神經網絡最基本的架構之一，它的特性是：
 
 ![sgn](/sgn.png)
 
-簡言之，和Logistic Regression或線性SVM類似，簡單的Perceptron模型可以用來分類二元資料。
+和Logistic Regression或線性SVM類似，簡單的Perceptron模型可以用來分類二元資料。
 
 # 以Iris資料集為範例
 1. 讀入iris資料集，我們可以用此資料集的部份資料來示範用Perceptron做二元分類作業。
