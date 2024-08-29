@@ -1,0 +1,370 @@
+---
+title: '使用卷積類神經網絡辨識簡單影像'
+publishedAt: '2024-08-29'
+summary: 'The post uses MNIST to demonstrate how one may use the CNN to recognize the hand-written arabic numerals.'
+---
+
+Convolution 在中文翻譯中，有稱為，捲積、疊積、褶積、旋積、或卷積，也許是據其操作方法-輸入向量如同卷軸般的分段移動，而後再將這些小段與Kernel向量做內積運算-所做的翻譯，所以CNN有時被譯為「卷積(類)神經網絡」，因為CNN的字元數較少，我們偏好使用CNN，但當語意需要時，有時仍會使用「卷積(類)神經網絡」。
+
+在此文我們將以MNIST的資料集為例子來展示使用CNN的做多類別的影像辨識工作。相對來說MNIST資料集的資料量小(訓練組僅有60,000筆)，且影像內容簡單(28 x 28)，即使使用簡單的MLP模型也可以達到超過90%的成功率，因此此文的主要目的有二：
+
+1. 演示如何使用CNN進行辨識影像，
+2. 比較MLP和CNN模型的總參數數量。
+
+目標二的結果可以幫助我們了解CNN的角色。
+
+# 預處理MNIST資料集
+
+首先我先檢視40張MNIST的圖檔。
+
+![MNIST](/mnist_plot.png)
+
+雖然MNIST資料集經常會伴隨在常用的機器學習套件中，為了適當地比較不同模型的表現，我們直接自原始資料集的`gz`檔中載入資料，將之重新整理為28 x 28的矩陣，之後再將之分為訓練組、驗證組及測試組，
+
+```
+from utils import mnist_reader
+from utils.helper import invert_grayscale
+import numpy as np
+import sys
+
+import pickle as pkl
+
+
+DATA_DIR = "../data/MNIST"
+
+
+def convert2image_format(image):
+    mnist_digits = image  # X[0,:]
+    X0 = np.reshape(mnist_digits, (-1, 28, 28))
+    X0_ = invert_grayscale(X0)
+    out = X0_[0, :, :]
+    return out
+
+
+def split_train_and_valid(data_path, train_ratio=0.80):
+    # Mitigate the Python rounding error problem
+    val_ratio = round(1 - train_ratio, 2)
+
+    X0_test, Y0_test = mnist_reader.load_mnist(path=data_path, kind="t10k")
+    X0, Y0 = mnist_reader.load_mnist(path=data_path, kind="train")
+
+    X1_test = np.array([convert2image_format(element) / 255 for element in X0_test])
+    X1 = np.array([convert2image_format(element) / 255 for element in X0])
+
+    nsample = X0.shape[0]
+    train_size = int(train_ratio * nsample)
+    val_size = int(val_ratio * nsample)
+
+    X_train = X1[:train_size, :]
+    X_val = X1[train_size : train_size + val_size, :]
+
+    Y_train = Y0[:train_size]
+    Y_val = Y0[train_size : train_size + val_size]
+
+    X_test = X1_test
+    Y_test = Y0_test
+
+    print("The size of the train, validation and test are: ")
+    print(X_train.shape, X_val.shape, X_test.shape)
+    print(Y_train.shape, Y_val.shape, Y_test.shape)
+
+    return X_train, X_val, X_test, Y_train, Y_val, Y_test
+
+
+if __name__ == "__main__":
+    # python3 preprocess_datal.py
+
+    if len(sys.argv) > 1:
+        train_ratio = float(sys.argv[1])
+        print(f"Argument provided: {train_ratio}")
+    else:
+        print("No arguments provided.")
+
+    X_train, X_val, X_test, Y_train, Y_val, Y_test = split_train_and_valid(
+        DATA_DIR, train_ratio
+    )
+
+    with open("tmp_data/mnist_data.pkl", "wb") as file_obj:
+        pkl.dump((X_train, X_val, X_test, Y_train, Y_val, Y_test), file_obj)
+
+```
+
+下一步，我們使用上段程式碼處理後的資料，分別訓練一組MLP模型及一組CNN模型。兩組程序都只使用30次遞迴。
+
+```
+python3 fit_cnn_model.py 30
+python3 fit_mlp_model.py 30
+
+```
+
+完成後，我們使用`pickle`及keras.model的套件將訓練結果載入分析。
+
+```
+import pickle as pkl
+from keras.models import load_model
+
+# history
+with open('models/cnn_mnist_history.pkl', 'rb') as file_obj:
+    cnn_history = pkl.load(file_obj)
+
+with open('models/mlp_mnist_history.pkl', 'rb') as file_obj:
+    mlp_history = pkl.load(file_obj)
+
+cnn_model = load_model("models/cnn_mnist_model.keras")
+mlp_model = load_model("models/mlp_mnist_model.keras")
+
+with open("tmp_data/mnist_data.pkl", "rb") as file:
+    X_train, X_val, X_test, Y_train, Y_val, Y_test = pkl.load(file)
+
+
+```
+
+
+CNN 使用了6040個參數，而MLP使用了 16020個參數。
+
+```
+cnn_model.count_params(), mlp_model.count_params()
+
+```
+
+兩組模型都使用了四層神經層。
+
+```
+cnn_model.summary()
+mlp_model.summary()
+
+┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer           ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ conv2d          │ (None, 28, 28, 3)      │           150 │
+├─────────────────┼────────────────────────┼───────────────┤
+│ max_pooling2d   │ (None, 14, 14, 3)      │             0 │
+├─────────────────┼────────────────────────┼───────────────┤
+│ flatten         │ (None, 588)            │             0 │
+├─────────────────┼────────────────────────┼───────────────┤
+│ dense           │ (None, 10)             │         5,890 │
+└─────────────────┴────────────────────────┴───────────────┘
+
+┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer           ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ flatten         │ (None, 784)            │             0 │
+├─────────────────┼────────────────────────┼───────────────┤
+│ dense           │ (None, 20)             │        15,700 │
+├─────────────────┼────────────────────────┼───────────────┤
+│ dense_1         │ (None, 10)             │           210 │
+├─────────────────┼────────────────────────┼───────────────┤
+│ dense_2         │ (None, 10)             │           110 │
+└─────────────────┴────────────────────────┴───────────────┘
+```
+
+雖然使用了較少的參數，CNN表現比MLP高了約3.5百分點，相當於，在10,000張圖片中，CNN誤認了233圖片，而MLP誤認了近555張圖片。
+
+```
+cnn_model.evaluate(X_test, Y_test)
+mlp_model.evaluate(X_test, Y_test)
+# accuracy: 0.9710 - loss: 0.0913
+# accuracy: 0.9360 - loss: 0.2251
+
+```
+
+![CNN_v_MLP](/cnn_vs_mlp.png)
+
+
+最後來檢視100個難以分類的影像。
+
+![error_inferece](/both_model_incorrect_prediction.png)
+
+# 結語
+
+在面對類似的影像辨識作業時CNN所需要最佳化的參數總量小於相近的MLP模型，因此當所需分析影像愈來愈複雜，單一影像檔所輸入的特徵值必然增多，因此在可用的方法及工具不變的情況下，若要達到類似的高辨識率，我們必須設置更多層的類神經網絡，且每一層網絡必然會有更多的節點，因此採用CNN成為較經濟的方法。
+
+就算一個簡單的CNN模型已經表現得不錯，但在某些要求極高的應用場景，例如銀行匯兌，即使只有不到3%的錯誤率，也可能造成巨大的損失。為了達到更高的準確度，我們可以增加CNN模型的複雜度，或者使用Dropout這種技巧來降低過擬合的風險。
+
+即使在此資料集中，一個簡易的CNN模型已經達到了超過97%的正確率，但在某些要求極高的應用場景，例如銀行匯兌，即使只有不到3%的錯誤率，也可能造成巨大的損失。我們可在增加CNN模型的複雜度並採用Dropout的方法可以達到99.1% (驗證組)及98.8%(測試組)的正確率。
+
+```
+model = keras.models.Sequential(
+    [
+        keras.layers.Conv2D(
+            filters=32,
+            kernel_size=7,
+            activation="relu",
+            padding="SAME",
+            input_shape=[28, 28, 1],
+        ),
+        keras.layers.MaxPooling2D(2),
+        keras.layers.Conv2D(
+            filters=128, kernel_size=3, activation="relu", padding="SAME"
+        ),
+        keras.layers.MaxPooling2D(pool_size=2),
+        keras.layers.Flatten(),
+        keras.layers.Dense(units=128, activation="relu"),
+        keras.layers.Dropout(0.5),
+        keras.layers.Dense(units=64, activation="relu"),
+        keras.layers.Dropout(0.5),
+        keras.layers.Dense(units=10, activation="softmax"),
+    ]
+)
+
+```
+# 附錄一、MLP及CNN的 Python 程式碼
+
+```
+import numpy as np
+import sys
+
+from tensorflow import keras
+import pickle as pkl
+
+
+if __name__ == "__main__":
+    # python3 fit_mlp_model.py 30
+
+    if len(sys.argv) > 1:
+        nepoch = int(sys.argv[1])
+        print(f"Argument provided: {nepoch}")
+    else:
+        print("No arguments provided.")
+
+    with open("tmp_data/mnist_data.pkl", "rb") as file:
+        X_train, X_val, X_test, Y_train, Y_val, Y_test = pkl.load(file)
+
+    model = keras.models.Sequential(
+        [
+            keras.layers.Flatten(input_shape=[28, 28, 1]),
+            keras.layers.Dense(20, activation="relu"),
+            keras.layers.Dense(10, activation="relu"),
+            keras.layers.Dense(10, activation="softmax"),
+        ]
+    )
+
+    print(model.summary())
+    print("Total number of the parameters is: ", model.count_params(), "\n")
+
+    model.compile(
+        loss="sparse_categorical_crossentropy", optimizer="sgd", metrics=["accuracy"]
+    )
+
+    history = model.fit(X_train, Y_train, epochs=nepoch, validation_data=(X_val, Y_val))
+
+    with open("models/mlp_mnist_history.pkl", "wb") as file_obj:
+        pkl.dump(history, file_obj)
+
+    print("Evaluating the test set:\n")
+    model.evaluate(X_test, Y_test)
+    model.save("models/mlp_mnist_model.keras")
+```
+
+# 附錄二、模型表現的繪圖 Python 程式碼
+
+```
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+cnn_df = pd.DataFrame(cnn_history.history)
+mlp_df = pd.DataFrame(mlp_history.history)
+
+# Shift the training metrics half an epoch to the left
+cnn_df['accuracy'] = cnn_df['accuracy'].shift(-1)
+cnn_df['loss'] = cnn_df['loss'].shift(-1)
+mlp_df['accuracy'] = mlp_df['accuracy'].shift(-1)
+mlp_df['loss'] = mlp_df['loss'].shift(-1)
+
+
+# Drop the last row as it will have NaN values after the shift
+cnn_df = cnn_df.dropna()
+mlp_df = mlp_df.dropna()
+
+cnn_df['epoch'] = list(sequence)
+mlp_df['epoch'] = list(sequence)
+
+cnn_df['source'] = 'CNN'
+mlp_df['source'] = 'MLP'
+
+# Concatenate the DataFrames
+combined_df = pd.concat([cnn_df, mlp_df], ignore_index=True)
+
+# Reset index
+combined_df.reset_index(drop=True, inplace=True)
+
+import matplotlib.pyplot as plt
+
+# Plot accuracy
+plt.figure(figsize=(12, 6))
+
+plt.subplot(1, 2, 1)
+for source in combined_df['source'].unique():
+    subset = combined_df[combined_df['source'] == source]
+
+    plt.plot(subset['epoch'], subset['accuracy'], '-o', label=f'{source} Training set')
+    plt.plot(subset['epoch'], subset['val_accuracy'], '-o', label=f'{source} Validation set')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.title('Model Accuracy')
+    plt.legend()
+
+# Plot loss
+plt.subplot(1, 2, 2)
+for source in combined_df['source'].unique():
+    subset = combined_df[combined_df['source'] == source]
+
+    plt.plot(subset['epoch'], subset['loss'], '-*', label=f'{source} Training set')
+    plt.plot(subset['epoch'], subset['val_loss'], '-*', label=f'{source} Validation set')
+    plt.title('Model Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+```
+
+# 附錄三、錯誤辨識繪圖的 Python 程式碼
+
+```
+import numpy as np
+
+# Assuming X_test_std and Y_test are your test data and true labels
+cnn_predicted_y_proba = cnn_model.predict(X_test)
+mlp_predicted_y_proba = mlp_model.predict(X_test)
+cnn_predicted_classes = np.argmax(cnn_predicted_y_proba, axis=1)
+mlp_predicted_classes = np.argmax(mlp_predicted_y_proba, axis=1)
+# true_classes = np.argmax(Y_test, axis=1)
+
+# Find the indices of incorrect predictions
+cnn_incorrect_indices = np.where(cnn_predicted_classes != Y_test)[0]
+mlp_incorrect_indices = np.where(mlp_predicted_classes != Y_test)[0]
+
+common_values = np.intersect1d(mlp_incorrect_indices, cnn_incorrect_indices)
+difference_values = np.setdiff1d(mlp_incorrect_indices, cnn_incorrect_indices)
+print("Common values:", common_values)
+
+n_rows = 5
+n_cols = 10
+plt.figure(figsize=(n_cols * 2, n_rows * 2))
+for row in range(n_rows):
+    for col in range(n_cols):
+        index = n_cols * row + col
+        incorrect_index = common_values[index]
+
+        image = convert2image_format(X_test[incorrect_index,:])
+        label_data = Y_test[incorrect_index]
+        clabel = mlp_predicted_classes[incorrect_index]
+        mlabel = cnn_predicted_classes[incorrect_index]
+        combined_label = f"{label_data} c-{clabel} m-{mlabel}"
+
+
+        plt.subplot(n_rows, n_cols, index + 1)
+        plt.imshow(image, cmap="binary", interpolation="nearest")
+        plt.axis('off')
+        plt.title(combined_label, fontsize=20)
+        
+plt.subplots_adjust(wspace=0.2, hspace=0.5)
+plt.tight_layout()
+
+plt.show()
+```
