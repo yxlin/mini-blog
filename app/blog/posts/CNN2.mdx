@@ -212,22 +212,35 @@ model = keras.models.Sequential(
 
 ```
 import numpy as np
-import sys
-
+import argparse
 from tensorflow import keras
 import pickle as pkl
 
 
 if __name__ == "__main__":
-    # python3 fit_mlp_model.py 30
+    # python3 fit_mlp_model.py "tmp_data/mnist_data.pkl" "models/mlp_mnist_history.pkl" "models/mlp_mnist_model.keras" --nepoch 30
 
-    if len(sys.argv) > 1:
-        nepoch = int(sys.argv[1])
-        print(f"Argument provided: {nepoch}")
-    else:
-        print("No arguments provided.")
+    # python3 fit_mlp_model.py "tmp_data/fashion_mnist_data.pkl" "models/mlp_fashion_mnist_history.pkl" "models/mlp_fashion_mnist_model.keras" --nepoch 30
 
-    with open("tmp_data/mnist_data.pkl", "rb") as file:
+    parser = argparse.ArgumentParser(description="Process MNIST data")
+    parser.add_argument("data_path", type=str, help="Path to the data file")
+    parser.add_argument("output_path", type=str, help="Path to the stored data file")
+    parser.add_argument("model_output", type=str, help="Path to the model description")
+    parser.add_argument("--nepoch", type=int, default=30, help="Number of epoch")
+
+    args = parser.parse_args()
+    DATA_DIR = args.data_path
+    OUTPUT_DIR = args.output_path
+    MODEL_DIR = args.model_output
+    nepoch = args.nepoch
+
+    print(f"Data path provided: {DATA_DIR}")
+    print(f"Data were stored: {OUTPUT_DIR}")
+    print(f"Model was stored: {OUTPUT_DIR}")
+    print(f"The number of epoch: {nepoch}")
+
+
+    with open(DATA_DIR, "rb") as file:
         X_train, X_val, X_test, Y_train, Y_val, Y_test = pkl.load(file)
 
     model = keras.models.Sequential(
@@ -248,32 +261,44 @@ if __name__ == "__main__":
 
     history = model.fit(X_train, Y_train, epochs=nepoch, validation_data=(X_val, Y_val))
 
-    with open("models/mlp_mnist_history.pkl", "wb") as file_obj:
-        pkl.dump(history, file_obj)
-
     print("Evaluating the test set:\n")
     model.evaluate(X_test, Y_test)
-    model.save("models/mlp_mnist_model.keras")
+
+    with open(OUTPUT_DIR, "wb") as file_obj:
+        pkl.dump(history, file_obj)
+
+    model.save(MODEL_DIR)
+
+
 ```
 
 ```
 import numpy as np
-import sys
-
+import argparse
 from tensorflow import keras
 import pickle as pkl
 
-
 if __name__ == "__main__":
-    # python3 fit_cnn_model.py 30
+    # python3 fit_cnn_model.py "tmp_data/mnist_data.pkl" "models/mlp_mnist_history.pkl" "models/mlp_mnist_model.keras" --nepoch 30
+    # python3 fit_cnn_model.py "tmp_data/fashion_mnist_data.pkl" "models/mlp_fashion_mnist_history.pkl" "models/mlp_fashion_mnist_model.keras" --nepoch 30
+    parser = argparse.ArgumentParser(description="Process MNIST data")
+    parser.add_argument("data_path", type=str, help="Path to the data file")
+    parser.add_argument("output_path", type=str, help="Path to the stored data file")
+    parser.add_argument("model_output", type=str, help="Path to the model description")
+    parser.add_argument("--nepoch", type=int, default=30, help="Number of epoch")
 
-    if len(sys.argv) > 1:
-        nepoch = int(sys.argv[1])
-        print(f"Argument provided: {nepoch}")
-    else:
-        print("No arguments provided.")
+    args = parser.parse_args()
+    DATA_DIR = args.data_path
+    OUTPUT_DIR = args.output_path
+    MODEL_DIR = args.model_output
+    nepoch = args.nepoch
 
-    with open("tmp_data/mnist_data.pkl", "rb") as file:
+    print(f"Data path provided: {DATA_DIR}")
+    print(f"Data were stored: {OUTPUT_DIR}")
+    print(f"Model was stored: {OUTPUT_DIR}")
+    print(f"The number of epoch: {nepoch}")
+
+    with open(DATA_DIR, "rb") as file:
         X_train, X_val, X_test, Y_train, Y_val, Y_test = pkl.load(file)
 
     model = keras.models.Sequential(
@@ -300,17 +325,17 @@ if __name__ == "__main__":
 
     history = model.fit(X_train, Y_train, epochs=nepoch, validation_data=(X_val, Y_val))
 
-    with open("models/cnn_mnist_history.pkl", "wb") as file_obj:
-        pkl.dump(history, file_obj)
-
     print("Evaluating the test set:\n")
     model.evaluate(X_test, Y_test)
-    model.save("models/cnn_mnist_model.keras")
 
+    with open(OUTPUT_DIR, "wb") as file_obj:
+        pkl.dump(history, file_obj)
+
+    model.save(MODEL_DIR)
 
 ```
 
-## 二、模型表現的繪圖程式碼
+## 二、評估模型表現的繪圖碼
 
 ```
 
@@ -377,7 +402,7 @@ plt.show()
 
 ```
 
-## 三、錯誤辨識繪圖程式碼
+## 三、評估誤判的繪圖碼
 
 ```
 import numpy as np
@@ -423,7 +448,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-## 四、辨識Fashion MNIST的結果
+## 四、同樣模型辨識Fashion MNIST影像的結果
 MLP及CNN對測試組的正確率分別是87%和88%，在不改變模型複雜度的情況下兩模型表現相當，即使使用更為複雜的CNN模型正確率也僅來到91%。從另一角度來看，CNN使用了少於MLP一半的參數總量即達到了相近的正確率。
 
 ![Fashin MNIST](/cnn_vs_mlp_fashion_mnist.png)
