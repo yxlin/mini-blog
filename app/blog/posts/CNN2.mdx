@@ -13,7 +13,7 @@ Convolution 在中文翻譯中，有稱為捲積、疊積、褶積、旋積、�
 
 # 預處理MNIST資料集
 
-首先我先檢視40張MNIST的圖檔。
+首先我們先檢視40張MNIST的圖檔。
 
 ![MNIST](/mnist_plot.png)
 
@@ -206,7 +206,9 @@ model = keras.models.Sequential(
 )
 
 ```
-# 附錄一、MLP及CNN的 Python 程式碼
+# 附錄
+
+## 一、MLP及CNN的 Python 程式碼
 
 ```
 import numpy as np
@@ -308,7 +310,7 @@ if __name__ == "__main__":
 
 ```
 
-# 附錄二、模型表現的繪圖程式碼
+## 二、模型表現的繪圖程式碼
 
 ```
 
@@ -375,7 +377,7 @@ plt.show()
 
 ```
 
-# 附錄三、錯誤辨識繪圖程式碼
+## 三、錯誤辨識繪圖程式碼
 
 ```
 import numpy as np
@@ -421,7 +423,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-# 附錄四、辨識Fashion MNIST的結果
+## 四、辨識Fashion MNIST的結果
 MLP及CNN對測試組的正確率分別是87%和88%，在不改變模型複雜度的情況下兩模型表現相當，即使使用更為複雜的CNN模型正確率也僅來到91%。從另一角度來看，CNN使用了少於MLP一半的參數總量即達到了相近的正確率。
 
 ![Fashin MNIST](/cnn_vs_mlp_fashion_mnist.png)
