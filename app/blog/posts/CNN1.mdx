@@ -8,13 +8,13 @@ Convolutional neural network (CNN)是類神經網絡架構的一類, 相較於�
 
 # 視域，特徵地圖及Convolution層 
 
-<span style={{color: 'darkblue'}}> Convolutional layer </span> 指的是類神經層之間的節點連接是部份連結，此概念是模仿生物的視神經皮質，如V1, V2層的發現，此外，此類神經層的數值運算是透過一種稱為Convolution的演算方式而達成的。這兩點異於全連結的類神經網絡，具體地說，在MLP中，每一個類神經層的演算是將輸入向量與權重向量進行[_內積_](https://zh.wikipedia.org/zh-tw/%E7%82%B9%E7%A7%AF) (dot product)，但是Convolutional layer是進行Convolution的運算。
+<span style={{color: 'darktblue'}}> Convolutional layer </span> 指的是類神經層之間的節點連接是部份連結，此概念是模仿生物的視神經皮質，如V1, V2層的發現，此外，此類神經層的數值運算是透過一種稱為Convolution的演算方式而達成的。這兩點異於全連結的類神經網絡，具體地說，在MLP中，每一個類神經層的演算是將輸入向量與權重向量進行[_內積_](https://zh.wikipedia.org/zh-tw/%E7%82%B9%E7%A7%AF) (dot product)，但是Convolutional layer是進行Convolution的運算。
 
 Convolution是一項線性代數中常用的矩陣代數的演算方法，以下我們將分節說明。
 
 輸入層的節點雖然仍用來表徵外界的圖片，例如每一個特徵像素對應一個輸入節點，Convolutional layer的每一個神經節點接收的前一層訊息侷限於某一個範圍的節點，此點類似於視神經皮質的視域(Receptive field)機制。
 
-<span style={{color: 'darkblue'}}>視域 </span>指的是視網膜上的每一個神經細胞僅感知到落於外界空間中，某一個小範圍的光線刺激，此點和MLP架構，每一個神經節點可以接收到前一神經層所有節點的訊息相異。Convolutional layer採用視域的概念，在Convolutional layer中每一個神經節點僅接收到前一神經層的某一小塊的感知區域的神經元，但不與其他同在前一神經層的節點有任何連接。簡言之，Convolutional layer上的每一個神經節點和前一層並非是節點對節點的完全連接，而是節點對視域的連接。
+<span style={{color: 'darktblue'}}>視域 </span>指的是視網膜上的每一個神經細胞僅感知到落於外界空間中，某一個小範圍的光線刺激，此點和MLP架構，每一個神經節點可以接收到前一神經層所有節點的訊息相異。Convolutional layer採用視域的概念，在Convolutional layer中每一個神經節點僅接收到前一神經層的某一小塊的感知區域的神經元，但不與其他同在前一神經層的節點有任何連接。簡言之，Convolutional layer上的每一個神經節點和前一層並非是節點對節點的完全連接，而是節點對視域的連接。
 
 <span style={{color: 'darkblue'}}> 特徵地圖(Feature maps) </span> 是認知科學中視覺搜尋的理論之一，特徵地圖假設，外在影像的初期知覺表徵，會被細分為多個不同的特徵地圖，例如一張彩色影像，在經過視網膜處理後，會被視神經、V1、V2及更高層的視皮質分析為多種不同的特徵地圖，比方說在一張 28 x 28 的影像檔，特徵地圖可以被想像是每個像素點上：
 
@@ -344,4 +344,4 @@ model = keras.models.Sequential([
 
 # 小結
 
-CNN借由模仿生物的視神經機制介紹了許多新的概念，這此概念實現於數值演算中成為CNN的基石，除了以上的簡介外，實際計算時，演算法設計者還必須考量矩陣上數值的配置方法，以及計算的效率，幸運的是，上述介紹的常用機制在Keras及PyTorch套件中都有不同的實作函數可使用，在下一個文章中，我們將以實際的例子來討論如何使用CNN的進行影像辨識。
+CNN借由模仿生物的視神經機制介紹了許多新的概念，這些概念實現於數值演算中成為CNN的基石，其中包含了Convolutional layer、Pooling layer、及Convolution的演算法。本文所介紹的CNN類神經機制在Keras及PyTorch套件中都有不同的實作函數可使用，在下一篇文章中，我們將以實際的例子來討論如何使用CNN的進行影像分類。

@@ -1,12 +1,12 @@
 ---
 title: '使用卷積類神經網絡辨識MNIST影像'
 publishedAt: '2024-08-29'
-summary: 'The post uses MNIST to demonstrate how one may use the CNN to recognize the hand-written arabic numerals.'
+summary: 'The post uses MNIST to demonstrate one may use the CNN to recognize the hand-written arabic numerals.'
 ---
 
 Convolution 在中文翻譯中，有稱為捲積、疊積、褶積、旋積、或卷積，也許是據其操作方法所做的翻譯，輸入向量如同卷軸般的分段移動，而後再將這些小段與Kernel向量做內積運算。 所以CNN有時被譯為「卷積(類)神經網絡」，因為CNN的字元數較少，我們偏好使用CNN，但當語意需要時，有時仍會使用「卷積(類)神經網絡」。
 
-在此文我們將以MNIST的資料集為例子來展示使用CNN的做多類別的影像辨識工作。相對來說MNIST資料集的資料量小(訓練組僅有60,000筆)，且影像內容簡單(28 x 28)，即使使用簡單的MLP模型也可以達到超過90%的成功率，因此此文的主要目的有二：
+在此文我們將以MNIST的資料集為例子來展示使用CNN的做多類別的影像辨識工作。相對來說MNIST資料集的資料量小(訓練組僅有60,000筆)，且影像內容簡單(28 x 28)，即使使用簡單的MLP模型也可以達到超過90%的成功率，此文的主要目的有二：
 
 1. 示範如何使用CNN進行影像辨識，
 2. 比較MLP和CNN模型的總參數數量。
@@ -22,9 +22,8 @@ Convolution 在中文翻譯中，有稱為捲積、疊積、褶積、旋積、�
 ```
 from utils import mnist_reader
 from utils.helper import invert_grayscale
-import numpy as np
 import sys
-
+import numpy as np
 import pickle as pkl
 
 
@@ -32,7 +31,7 @@ DATA_DIR = "../data/MNIST"
 
 
 def convert2image_format(image):
-    mnist_digits = image  # X[0,:]
+    mnist_digits = image  
     X0 = np.reshape(mnist_digits, (-1, 28, 28))
     X0_ = invert_grayscale(X0)
     out = X0_[0, :, :]
@@ -70,7 +69,7 @@ def split_train_and_valid(data_path, train_ratio=0.80):
 
 
 if __name__ == "__main__":
-    # python3 preprocess_datal.py
+    # python3 preprocess_data.py
 
     if len(sys.argv) > 1:
         train_ratio = float(sys.argv[1])
@@ -156,7 +155,7 @@ mlp_model.summary()
 └─────────────────┴────────────────────────┴───────────────┘
 ```
 
-雖然使用了較少的參數，CNN表現比MLP高了約3.5百分點，相當於，在10,000張圖片中，CNN誤認了233圖片，而MLP誤認了555張圖片。
+雖然使用了較少的參數，CNN表現比MLP高了約3.5個百分點；在10,000張測試組的圖片中，CNN誤認了233圖片，而MLP誤認了555張圖片。
 
 ```
 cnn_model.evaluate(X_test, Y_test)
@@ -169,9 +168,9 @@ mlp_model.evaluate(X_test, Y_test)
 ![CNN_v_MLP](/cnn_vs_mlp.png)
 
 
-最後讓我們來檢視100個誤認的影像，左上角的2被CNN辨識為3或MLP辨識9，第一行第二欄的9被兩模型都辨識為8，第一行第三欄的4，兩模型都辨識為2。第一行第四欄的6，兩模型都辨識為0，若以一位有經驗的人員來辨識，或許他(她)可以正確的辨識這些數字。
+最後讓我們來檢視100張誤認的影像，左上角的2被CNN辨識為3，而MLP辨識為9，第一行第二欄的9被兩個模型都辨識為8，第一行第三欄的4，兩模型都辨識為2。第一行第四欄的6，兩模型都辨識為0，若請一位有經驗的銀行行員來辨識，或許他(她)可以正確的辨識這些數字。
 
-第三行第八欄的7被兩模型都辨識為1，這個例子則有些困難，即使是有經驗的辨識人員或許也會誤判。
+有趣的是第三行第八欄的7被兩模型都辨識為1，這個例子似乎有些困難，或許有經驗的工作人員將之判定為7。
 
 ![error_inferece](/both_model_incorrect_prediction.png)
 
@@ -179,7 +178,7 @@ mlp_model.evaluate(X_test, Y_test)
 
 在面對類似的影像辨識作業時CNN所需要最佳化的參數總量小於相近的MLP模型，因此當分析影像愈來愈複雜時，單一影像檔所輸入的特徵值必然增多，因此在可用的方法及工具不變的情況下，若要達到類似的高辨識率，我們必須設置更多層的類神經網絡，且每一層網絡必然會有更多的節點，因此採用CNN成為較經濟的方法。
 
-即使在此資料集中，一個簡易的CNN模型已經達到了超過97%的正確率，但在某些要求極高的應用場景，例如銀行匯兌，即使只有不到3%的錯誤率，也可能造成巨大的損失。我們可在增加CNN模型的複雜度並採用Dropout的方法可以達到99.1% (驗證組)及98.8%(測試組)的正確率。
+即使在此資料集中，一個簡易的CNN模型已經達到了超過97%的正確率，但在某些要求極高的應用場景，例如銀行匯兌，即使只有不到3%的錯誤率，也可能造成巨大的損失。我們可增加CNN模型的複雜度並採用Dropout的方法可以達到99.1% (驗證組)及98.8%(測試組)的正確率。
 
 ```
 model = keras.models.Sequential(
