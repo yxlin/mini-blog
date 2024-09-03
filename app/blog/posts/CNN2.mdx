@@ -406,12 +406,11 @@ plt.show()
 ```
 import numpy as np
 
-# Assuming X_test_std and Y_test are your test data and true labels
+
 cnn_predicted_y_proba = cnn_model.predict(X_test)
 mlp_predicted_y_proba = mlp_model.predict(X_test)
 cnn_predicted_classes = np.argmax(cnn_predicted_y_proba, axis=1)
 mlp_predicted_classes = np.argmax(mlp_predicted_y_proba, axis=1)
-# true_classes = np.argmax(Y_test, axis=1)
 
 # Find the indices of incorrect predictions
 cnn_incorrect_indices = np.where(cnn_predicted_classes != Y_test)[0]

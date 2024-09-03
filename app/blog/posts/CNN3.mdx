@@ -1,5 +1,5 @@
 ---
-title: '使用CNN辨識笑容'
+title: '笑容辨識'
 publishedAt: '2024-09-02'
 summary: 'The post uses celeba dataset to demonstrate using the CNN to recognize smiling faces.'
 ---
@@ -40,24 +40,18 @@ names(dattr)
 
 ```
 
-資料集中有約48%的圖檔被判定帶有笑容。
+資料集中有約48%的圖檔被判定帶有笑容。笑容的標記是：1 = 笑容，-1=無笑容。
+
+```
+round( table(dattr$Smiling) / nrow(d), 2)
+# -1      1 
+# 0.52 0.48 
 
 ```
 
-table(dattr$Smiling)
-#  -1      1 
-# 104930  97669 
-
-table(dattr$Smiling) / nrow(d)
-# -1         1 
-# 0.5179196 0.4820804 
+直接印出圖檔來檢視
 
 ```
-
-讓我們來檢視這些圖檔
-
-```
-
 import numpy as np
 import PIL
 import PIL.Image
@@ -97,20 +91,20 @@ for row in range(n_rows):
         
 plt.subplots_adjust(wspace=0.2, hspace=0.5)
 plt.tight_layout()
-# save_fig('incorrect_prediction_fashion_mnist_plot', tight_layout=False)
 plt.show()
 
 ```
 
 ![Smiling](/smiling_faces.png)
 
-笑容的標記是：1 = 笑容，-1=無笑容。上圖顯示這些人工分類大致正確，雖然有一些圖片，如第一行第三欄、第三行第三欄及第四行第四欄等似笑非笑的表情確是難以分類。
+上圖顯示這些人工分類大致正確，雖然有一些圖片，如第一行第三欄、第三行第三欄及第四行第四欄等似笑非笑的表情確是難以分類。
 
-## 使用CNN模型分類笑容
-相較於Fashion-MNIST的圖檔，Celeba的圖檔較大(28 x 28 x 1 vs 218 x 178 x 3)，但所需分類的類別較少(10 vs 2)。之前我們達到了88%的正確率，此練習有二目的：
+# 使用簡易的CNN模型分類笑容
+相較於Fashion-MNIST的圖檔，Celeba的圖檔較大(28 x 28 x 1 vs 218 x 178 x 3)，但所需分類的類別較少(10 vs 2)。之前我們達到了88%的正確率，此範例展示目的有二：
 
 1. 測試是否相同的模型可以分類不同類別的圖檔，
 2. 測試同樣的模型對資料量較大的圖檔的表現。
+3. 展示批次處理方法，以應對GPU記憶體不足的問題。
 
 之前我們使用了一個非常簡單的CNN模型，如下所示。
 
@@ -133,7 +127,7 @@ model = keras.models.Sequential(
 
 ```
 
-為了進行二元分類作業，我們需將最後的輸出層改為，`keras.layers.Dense(units=1, activation='sigmoid')`，使用sigmoid函式；並將輸入層中，告知模型的樣本各個維度的長度。
+我們需將最後的輸出層改為，`keras.layers.Dense(units=1, activation='sigmoid')`，使用sigmoid函式，以利進行二元分類作業；此外輸入層中，告知模型的樣本各個維度的長度。
 
 ```
     model = keras.models.Sequential(
@@ -153,17 +147,17 @@ model = keras.models.Sequential(
 
 ```
 
-因為此資料集較大，一次將所有的圖檔資料傳送進GPU記憶體，會導致記憶體超載。因此我們僅使用前3000張圖檔。
-* 另一解決方案是使用檔名來做Shuffle，在model fitting之時以批次的方式，僅將每一批次的檔案送進GPU記憶體中。
+因為此資料集較大，一次將所有的圖檔資料傳送進GPU記憶體，會導致記憶體超載。因此我們僅使用前3,000張圖檔。使用批次處理的方式低階的GPU可以處理達5,000張圖檔。
 
 ```
-nsample = 3000
+nsample = 5000
 # Load all images into a list of NumPy arrays
 images = [load_image(path) for path in sorted_files[:nsample]]
 
 # Convert list of arrays into a single NumPy array
 dataset = np.array(images)
 len(dataset), dataset.shape
+
 
 ```
 
@@ -177,4 +171,78 @@ cnn_model.evaluate(X_test, Y_test)
 ```
 雖然驗證組及測試組的正確率達到近88%，驗證組的Lost函數隨epoch數有愈增現像，暗示著此簡易模型有Overfitting的問題。
 
-[未完續待]
+下圖顯示CNN模型分類和人工分類的歧異，確實有些圖檔難以分類，例如第一排第一欄，第一排第三欄，但也有一些圖片或許模型應該可以做得更好，例如第二排第二欄及第四排第五欄。
+
+![Smiling](/hard_to_categorize_pictures.png)
+
+# 小結
+
+在此類簡易的分類作業中，非常簡單的CNN模型通常就可以達到非常好的正確率>80%，且可以分類不同的類型的圖檔，但是如果為了達到和人工判別，非常接近的一致性(如>95%的正確率)，模型勢必變得更為複雜。此例中雖然圖檔解析度較高，因此增加了記憶體的負擔，即使使用批次處理的方式，幫助仍然有限，特別是關鍵的GPU記憶體。下文我們將使用另一種方法Data augumentation，並將圖檔進行裁切，測視是否可以改善記憶體的問題，並同時使用更複雜的模型以達到更高的正確率。
+
+# 附錄
+## 一、直接處理5000筆樣本的程式碼
+
+```
+import numpy as np
+import argparse
+from tensorflow import keras
+import pickle as pkl
+
+if __name__ == "__main__":
+    # python3 fit_celeba.py "tmp_data/celeba_data.pkl" "models/celeba_history.pkl" "models/celeba.keras" --nepoch 30
+    
+    parser = argparse.ArgumentParser(description="Process MNIST data")
+    parser.add_argument("data_path", type=str, help="Path to the data file")
+    parser.add_argument("output_path", type=str, help="Path to the stored data file")
+    parser.add_argument("model_output", type=str, help="Path to the model description")
+    parser.add_argument("--nepoch", type=int, default=30, help="Number of epoch")
+
+    args = parser.parse_args()
+    DATA_DIR = args.data_path
+    OUTPUT_DIR = args.output_path
+    MODEL_DIR = args.model_output
+    nepoch = args.nepoch
+
+    print(f"Data path provided: {DATA_DIR}")
+    print(f"Data were stored: {OUTPUT_DIR}")
+    print(f"Model was stored: {MODEL_DIR}")
+    print(f"The number of epoch: {nepoch}")
+
+    with open(DATA_DIR, "rb") as file:
+        X_train, X_val, X_test, Y_train, Y_val, Y_test = pkl.load(file)
+
+    model = keras.models.Sequential(
+        [
+            keras.layers.Conv2D(
+                filters=3,
+                kernel_size=7,
+                activation="relu",
+                padding="SAME",
+                input_shape=[218, 178, 3],
+            ),
+            keras.layers.MaxPooling2D(2),
+            keras.layers.Flatten(),
+            keras.layers.Dense(units=1, activation='sigmoid')
+        ]
+    )
+
+    print(model.summary())
+    print("Total number of the parameters is: ", model.count_params())
+
+    model.compile(loss="binary_crossentropy", optimizer="nadam", metrics=["accuracy"])
+
+    # history = model.fit(X_train, Y_train, epochs=nepoch, batch_size = 32, validation_data=(X_val, Y_val))
+
+    history = model.fit(X_train, Y_train, epochs=nepoch, batch_size=32, validation_split=0.2)
+
+    print("Evaluating the test set:\n")
+    model.evaluate(X_test, Y_test)
+
+    with open(OUTPUT_DIR, "wb") as file_obj:
+        pkl.dump(history, file_obj)
+
+    model.save(MODEL_DIR)
+
+
+
+```
