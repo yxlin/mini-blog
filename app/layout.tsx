@@ -17,10 +17,10 @@ export const metadata: Metadata = {
   },
   description: 'This is my mini-blog.',
   openGraph: {
-    title: 'My Portfolio',
-    description: 'This is my mini-blog.',
+    title: 'The Mini-blog',
+    description: 'This blog discusses various techniques of computational modelling, covering topics in machine-learning, cognition and biological processes.',
     url: baseUrl,
-    siteName: 'Portfolio',
+    siteName: 'Mini-blog',
     locale: 'en_US',
     type: 'website',
   },

@@ -4,20 +4,59 @@ publishedAt: '2024-09-04'
 summary: 'The post studies the method used in detecting objects and drawing bounding boxes around them.'
 ---
 
-多數時候我們是在一張有許多人、事、物，非常繁忙的影像檔中找到各個不同的物體，之後再將之分開儲存為單一主題的影像檔。此類作業有時稱之為「物體偵測」。雖然此作業比分類作業更為複雜，目前已有許多已經建立的CNN模型可以實行物體偵測作業。以下我們將使用YOLO版本8做為範本。
+多數時候我們是在一張有許多人、事、物，非常繁忙的影像檔中找到各個不同的物體，之後再將之分開儲存為單一主題的影像檔。此類作業有時稱之為「物體偵測」。雖然此作業比分類作業更為複雜，目前已有許多已建立的CNN模型可以實行物體偵測作業。以下我們將使用YOLO版本8做為範例。
 
-比方說，以下是一張餐桌圖，上面有許多碗、盤、杯及食物，YOLO偵測到了有四位人、9個杯子、二個湯匙、一支胡蘿菠及一張餐桌。
+比方說，以下是一張餐桌圖，上面有許多碗、盤、杯及食物，YOLO偵測到了有四個人、9個杯子、二個湯匙、13個碗、9朵花椰菜、一支胡蘿菠及一張餐桌。
 
-![Food_boxes](/food_with_boxes.jpg)
+![Food_boxes](/food.jpg)
 
 另一個例子，是一張行人穿越道的影像截圖，YOLO偵測到了11個人, 一台自行車, 一輛公車, 2 個背包, 2個手提袋。
 
-然而YOLO或是類似的物體偵測模型並非完全，例如在公車後方及上方的兩個人及小客車都沒有被偵測到；若我們聘請一位人類判讀者，並給予他(她)充足的時間，他/她或許可以這些人及車。此外，圖中的交通號誌也沒有被偵測到。此點或許和訓練YOLO的資料有關，以上兩張圖是使用`yolov8n.pt`模型來進行偵測，此模型是使用`coco8.yaml`資料集來訓練，雖然此資料集中確有交通號誌的類別，但是像下圖中，台灣街道常見的數字倒數號誌，在coco8的資料集屬於少見的交通號誌，除此之外，圖片中的小綠人未亮也可能使得YOLO模型誤判，未將之視為交通號誌。
-
-綜言之，YOLO模型雖然並非是完美的，但是其物體偵測能力令人驚豔，事實上此類模型已經有許多實際的商業應用，在結合之前文章中的數字(及字母)分類模型之後，我們就可以開發的自動車牌辨識系統。
-
-![Crosswalk](/crosswalk_box.jpg)
-
+![Crosswalk1](/pedestrian_crossing.jpg)
 原始圖檔來自於[CNA](https://www.taipeitimes.com/News/feat/archives/2022/08/06/2003783058)
 
-[未完續待]
+YOLO或是類似的物體偵測模型並非完美，例如在公車上方的兩個人及小客車都沒有被偵測到；若我們聘請一位人類判讀者，並給予他(她)充足的時間，他/她或許可以找出這些人及車。此外，圖中的交通號誌也沒有被偵測到。此點或許和訓練YOLO的資料有關，以上兩張圖是使用`yolov8n.pt`模型來進行偵測，此模型是使用`coco8.yaml`資料集來訓練，雖然此資料集中確有交通號誌的類別，但是像圖中，台灣街道常見的數字倒數號誌，在coco8的資料集屬於少見的交通號誌，除此之外，圖片中的小綠人未亮也可能使得YOLO模型誤判，未將之視為交通號誌。
+
+# 結語
+綜言之，YOLO模型雖然並非是完美的，但是其物體偵測能力令人驚豔，事實上此類模型已經有許多實際的商業應用，在結合之前文章中的數字(及字母)分類模型之後，我們就可以開發的自動車牌辨識系統。
+
+![Crosswalk2](/crosswalk.jpg)
+原始圖檔來自於[Taiwan News取自CNA](https://taiwannews.com.tw/news/5900886)
+
+
+# 附錄
+
+## 一、Bounding Boxes的繪圖碼
+
+```
+import cv2
+
+
+output_dir = "images/YOLO_outputs/"
+img_path = "images/YOLO/"
+
+for i, img_file in enumerate(img_files):
+    file = img_path + img_file
+    img = cv2.imread(file)
+    
+    result = results[i]
+    for r in result:
+        for box in r.boxes:
+            
+            # Get the coordinates of the bounding box
+            x1, y1, x2, y2 = box.xyxy[0].int().tolist()
+
+            # Draw the bounding box
+            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+            class_id = int(box.cls)      # Convert tensor to int
+            confidence = float(box.conf) # Convert tensor to float
+            
+            label = f"{class_labels[class_id]} {confidence:.2f}"
+            cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 2.5, (255, 255, 255), 5)
+
+
+    # Save or display the image
+    output_file = output_dir + img_file
+    cv2.imwrite(output_file, img)            
+```
