@@ -4,7 +4,7 @@ publishedAt: '2024-08-22'
 summary: 'The post uses Fashion-MNIST to demonstrate one method to fit a Perceptron model.'
 ---
 
-本文以經典資料集Fashion-MNIST來說明 Multi-layer Perceptron (MLP) 的概念，及實現方法，並展示如何使用類神經網絡模型來執行一項多類別的分類作榮。
+本文以經典資料集Fashion-MNIST來說明 Multi-layer Perceptron (MLP) 的概念，及實現方法，並展示如何使用類神經網絡模型來執行一項多類別的分類作業。
 
 # Fashion-MNIST
 [Fashion-MNIST](https://github.com/zalandoresearch/fashion-mnist)是一組經典的資料集，原始資料分為訓練組及測試組，各組的特徵矩陣及目標向量分別被儲存為一個檔案，因此共有四個`gz`壓縮檔。原訓練組有60,000筆，測試組有10,000筆樣本。各筆資料為各類服飾圖檔的八位元的(0~255)像素值。
@@ -16,7 +16,7 @@ from utils import mnist_reader
 from sklearn.preprocessing import LabelEncoder
 
 class_names = ["短袖圓領汗衫/上衣", "褲子", "套衫", "裙子", "外套",
-               "涼鞋", "襯衫", "運動鞋", "包包", "及踝靴"]
+               "涼鞋", "襯衫", "運動鞋", "背包", "及踝靴"]
 ```
 
 尚未進行建模前，我們通常會先檢視資料，例如，我們會使用`shape`函數檢閱資料集的矩陣向度，確認測試組及訓練組確是10,000及60,000筆。在`X_test`及`X`中每一列(row)代表一筆資料，每一欄(column)代表一個特徵值，在這個例子中，每一個特徵值是一圖檔中的一個像素值。八位元的圖檔在二維的平面上共有784個像素，若轉置為二維矩陣，每個圖檔其實是28 x 28。
