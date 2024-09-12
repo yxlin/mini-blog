@@ -29,12 +29,11 @@ The format of the label files in [MNIST](http://yann.lecun.com/exdb/mnist) is a 
   ]
 }} />
 
+To import the QMNIST dataset, we use the Python scripts provided with the QMNIST dataset. This approach saves us the time it takes to work out the original NIST image formats[*1].
 
-To import the QMNIST dataset, we use the Python scripts bundled with the QMNIST dataset. This approach saves us time working out the original NIST image formats[*1].
+*1. QMNIST is also included in the latest version of PyTorch.
 
-*1. QMNIST is included in the latest version of PyTorch, too.
-
-The first 50 digits in the MNIST and QMNIST test sets look seemingly identical. The last 50 digits are different.
+The first 50 digits in the MNIST and QMNIST test sets look seemingly identical. The last 50 digits in the QMNIST are not seen in the MNIST.
 
 ## MNIST
 
@@ -51,7 +50,7 @@ The first 50 digits in the MNIST and QMNIST test sets look seemingly identical. 
 ![last 50 qmnist](/last_50_qmnist_test_digits.png)
 
 # A Very Deep CNN Model
-ResNet is one of the models in the ILSVRC 2015 challenge that scored a very low error rate. Its authors introduced methods to fine-tune the CNN architecture. We are going to use one of the ResNet that is avaialble in the public domain to fit QMNIST.
+ResNet is one of the models in the ILSVRC 2015 challenge that scored a very low error rate. Its authors introduced methods to fine-tune the CNN architecture. We are going to use one of the ResNet models that is avaialble in the public domain to fit QMNIST.
 
 Here, we used the ResNet model implemented in the esemble of the three models, the "small VGG", the ResNet and the "very small VGG". The esemble model scored the lowest error rate of 0.20% in the MNIST competition, listed in the ["How far can we go with MNIST?"](https://github.com/hwalsuklee/how-far-can-we-go-with-MNIST). The following is the step-by-step guide.
 
