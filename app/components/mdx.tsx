@@ -3,23 +3,24 @@ import Image from 'next/image'
 import { MDXRemote } from 'next-mdx-remote/rsc'
 import { highlight } from 'sugar-high'
 import React from 'react'
-import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
+import remarkGfm from 'remark-gfm';
 
 function Table({ data }) {
   let headers = data.headers.map((header, index) => (
-    <th key={index}>{header}</th>
-  ))
+    <th key={index} className='border px-4 py-2'>{header}</th>
+  ));
+
   let rows = data.rows.map((row, index) => (
-    <tr key={index}>
+    <tr key={index} className='border-t'>
       {row.map((cell, cellIndex) => (
-        <td key={cellIndex}>{cell}</td>
+        <td key={cellIndex} className='border px-4 py-2'>{cell}</td>
       ))}
     </tr>
   ))
 
   return (
-    <table>
+    <table className='border-collapse border border-gray-400'>
       <thead>
         <tr>{headers}</tr>
       </thead>
@@ -103,7 +104,7 @@ let components = {
 
 export function CustomMDX(props) {
   const mdxOptions = {
-    remarkPlugins: [remarkMath],
+    remarkPlugins: [remarkGfm],
     rehypePlugins: [rehypeKatex],
   }
   return (
