@@ -155,12 +155,13 @@ history2 = model.fit(
 # Result
 ![qmnist_ResNet](/qmnist_learning_curves.png)
 
-The result is very impressive. When we test the model on the 60,000-sample test set, it reports an accuracy of 99.16%. The error rate is about 0.84%. Recall that the esemble of the three models reached 0.20% for the 10,000-sample MNIST test set.
+The result is very impressive. When we test the model on the 60,000-sample test set, it reports an accuracy of 99.16%. The error rate is about 0.84%. Recall that the esemble of the three models reached 0.20% for the 10,000-sample MNIST test set and the simple CNN model we tested before resulted in a 3% error rate.
 
 The next figure shows 50 digits that the model casted a different prediction from the given label. The total number of these digits is 506. 
 
 ![qmnist_error](/incorrect_prediction_qmnist.png)
 
+In summary, achieving very high accuracy can require significant effort. When the benefits outweigh the costs, such as in the hypothetical case of processing financial transactions, using an ensemble model might be worthwhile. This approach can reduce the number of misidentified digits to 120 out of 60,000.   
 
 # Appendix
 
@@ -398,18 +399,12 @@ def read_idx3_ubyte(path):
         return parsed.reshape(length, num_rows, num_cols)
 
 
-def load_qmnist(path="~/QMNIST", validation_ratio=0.2, random_seed=42):
-  
-  qtrainimgs = read_idx3_ubyte(path + "qmnist-train-images-idx3-ubyte.gz")
-  qtrainlbls = read_idx2_int(path + "qmnist-train-labels-idx2-int.gz")
-  qtestimgs = read_idx3_ubyte(path + "qmnist-test-images-idx3-ubyte.gz")
-  qtestlbls = read_idx2_int(path + "qmnist-test-labels-idx2-int.gz")
+def load_qmnist(path="../data/QMNIST/", validation_ratio=0.2, random_seed=42):
 
-  X_test = qtestimgs.cpu().detach().numpy()
-  X_train = qtrainimgs.cpu().detach().numpy()
-
-  Y_train_all = qtrainlbls.cpu().detach().numpy()
-  Y_test_all = qtestlbls.cpu().detach().numpy()
+  X_train = read_idx3_ubyte(path + "qmnist-train-images-idx3-ubyte.gz")
+  Y_train_all = read_idx2_int(path + "qmnist-train-labels-idx2-int.gz")
+  X_test = read_idx3_ubyte(path + "qmnist-test-images-idx3-ubyte.gz")
+  Y_test_all = read_idx2_int(path + "qmnist-test-labels-idx2-int.gz")
 
   y_test = np.array([i[0] for i in Y_test_all])
   y_train = np.array([i[0] for i in Y_train_all])
@@ -418,9 +413,6 @@ def load_qmnist(path="~/QMNIST", validation_ratio=0.2, random_seed=42):
   test_images = X_test.reshape(-1, 28, 28, 1) / 255.0
 
   X_train_split, X_val_split, y_train_split, y_val_split = train_test_split(train_images, y_train, test_size=validation_ratio, random_state=random_seed)
-
-
   return (X_train_split, y_train_split), (X_val_split, y_val_split), (test_images, y_test)
-
 
 ```
