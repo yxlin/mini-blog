@@ -6,7 +6,7 @@ summary: 'The post shows the method to use callback in Keras.'
 
 
 # Q MNIST
-The [MNIST](http://yann.lecun.com/exdb/mnist) dataset bundled in machine-learning packages has only 10,000 samples in the test set. The full MNIST test set described in the early report used 60,000 samples, and was not included in the machine-learning package.
+The [MNIST](http://yann.lecun.com/exdb/mnist) dataset bundled in machine-learning packages has only 10,000 samples in the test set. The full MNIST test set described in the early report used 60,000 samples, and was not included in the early version of the machine-learning package<sup>*1</sup>. 
 
 The [QMNIST](https://github.com/facebookresearch/qmnist?tab=readme-ov-file) reconstructed MNIST dataset based on the original data found in the [NIST Special Database 19](https://www.nist.gov/srd/nist-special-database-19).
 
@@ -31,7 +31,6 @@ The format of the label files in [MNIST](http://yann.lecun.com/exdb/mnist) is a 
 
 To import the QMNIST dataset, we use the Python scripts provided with the QMNIST dataset. This approach saves us the time it takes to work out the original NIST image formats[*1].
 
-*1. QMNIST is also included in the latest version of PyTorch.
 
 The first 50 digits in the MNIST and QMNIST test sets look seemingly identical. The last 50 digits in the QMNIST are not seen in the MNIST.
 
@@ -52,7 +51,7 @@ The first 50 digits in the MNIST and QMNIST test sets look seemingly identical. 
 # A Very Deep CNN Model
 ResNet is one of the models in the ILSVRC 2015 challenge that scored a very low error rate. Its authors introduced methods to fine-tune the CNN architecture. We are going to use one of the ResNet models that is avaialble in the public domain to fit QMNIST.
 
-Here, we used the ResNet model implemented in the esemble of the three models, the "small VGG", the ResNet and the "very small VGG". The esemble model scored the lowest error rate of 0.20% in the MNIST competition, listed in the ["How far can we go with MNIST?"](https://github.com/hwalsuklee/how-far-can-we-go-with-MNIST). The following is the step-by-step guide.
+Here, we use the ResNet model implemented in the esemble of the three models, the "small VGG", the ResNet and the "very small VGG". The esemble model scored the lowest error rate of 0.20% in the MNIST competition, listed in the ["How far can we go with MNIST?"](https://github.com/hwalsuklee/how-far-can-we-go-with-MNIST). The following is the step-by-step guide.
 
 
 ## 1. Load the Package and Function 
@@ -60,12 +59,12 @@ Here, we used the ResNet model implemented in the esemble of the three models, t
 We update this line, `from keras.layers import PReLU`, because of some changes in the recent version of the Keras. [See Appendix 2 for the script.]
 
 ## 2. Build the ResNet 
-Then, we use the model building script from [the Github site](https://github.com/kkweon/mnist-competition) to build the model.
+Then, we use the model building script from [the mnist competition](https://github.com/kkweon/mnist-competition) to build the model.
 
 ## 3. Load QMNIST 
 Next, we use the script provided by the [QMNIST](https://github.com/facebookresearch/qmnist?tab=readme-ov-file) to load the data.
 
-We split the training set into a train and a validation sets and keep the test set as it is. We used the train_test_split in `sklearn.model_selection` to load the data. 
+We split the training set into a train and a validation sets and keep the test set as it is. We use the train_test_split in `sklearn.model_selection` to load the data. 
 
 ```
 train, valid, test = load_qmnist()
@@ -107,9 +106,8 @@ with open(SAVE_PATH, "wb") as f:
 
 ```
 
-## 5. Resume the Model Fitting Process
-
-Suppose that we stop the fitting at the end of the third epoch and want to continue to get more iterations. Because we only save the weight, we first reconstruct the model and load the weight.
+## 5. Resume the Model Fitting 
+Suppose that we stop the fitting at the end of the third epoch and want to continue later. Because we only save the weight, we need to reconstruct the model and then load the weight.
 
 ```
 input_shape = train[0][0].shape
@@ -155,13 +153,28 @@ history2 = model.fit(
 # Result
 ![qmnist_ResNet](/qmnist_learning_curves.png)
 
-The result is very impressive. When we test the model on the 60,000-sample test set, it reports an accuracy of 99.16%. The error rate is about 0.84%. Recall that the esemble of the three models reached 0.20% for the 10,000-sample MNIST test set and the simple CNN model we tested before resulted in a 3% error rate.
+The result looks impressive. When we test the model on the 60,000-sample test set, the model reports an accuracy of 99.16%. The error rate is about 0.84%. Recall that the esemble of the three models reached 0.20% for the 10,000-sample MNIST test set and the simple CNN model we tested before resulted in a 3% error rate.
 
-The next figure shows 50 digits that the model casted a different prediction from the given label. The total number of these digits is 506. 
+The following figure shows 50 digits that the model casted a different prediction from the given label. The total number of these digits is 506. 
 
 ![qmnist_error](/incorrect_prediction_qmnist.png)
 
-In summary, achieving very high accuracy can require significant effort. When the benefits outweigh the costs, such as in the hypothetical case of processing financial transactions, using an ensemble model might be worthwhile. This approach can reduce the number of misidentified digits to 120 out of 60,000.   
+We may plot a confusion matrix to get a ballpark idea of which digits were classified incorrecly the most. As it turns out, the digits, 3 and 4 were classified as 2 (27 times) and 9 (42 times). Three was also classified as 5 for 23 times.
+
+![confusion_matrix](/Confusion_matrix_qmnist.png)
+
+In summary, achieving very high accuracy can require significant effort. When the benefits outweigh the costs, such as in the hypothetical case of processing financial transactions, using an ensemble model might be worthwhile. This approach can reduce the number of misidentified digits to 120 out of 60,000. A detailed analysis of the error pattern reveals the issue that each hand-written digit is unique. 
+
+![49](/combined_49.png)
+
+![32](/combined_32.png)
+
+![35](/combined_35.png)
+
+
+
+# Footnote
+*1. QMNIST is also included in the latest version of PyTorch.
 
 # Appendix
 
