@@ -6,16 +6,19 @@ summary: 'The post shows how one might use data augumenation to fit a machine-le
 
 
 # GTSRB
-[GTSRB](https://benchmark.ini.rub.de/gtsrb_dataset.html#Downloads)<sup>*1</sup> 資料集收集43種德國交通號誌。資料集將圖檔分類為43個資料夾，資料夾以五個數字命名，自00000到00042。每一個資料夾儲存一種交通號誌<sup>*2</sup>。每個資料夾包含了多個不同明亮，模糊程度的圖檔(Data augumenation)<sup>*3</sup>。 
+[GTSRB](https://benchmark.ini.rub.de/gtsrb_dataset.html#Downloads)<sup>*1</sup> 資料集收集43種德國的交通號誌。資料集將圖檔分類為43個資料夾，資料夾以五個數字命名，自00000到00042。每一個資料夾儲存一種交通號誌<sup>*2</sup>。每個資料夾包含了多個不同明亮，模糊程度的圖檔(Data augumenation)<sup>*3</sup>。 
 
+此文除了展示 data augumentation 的優點外，還展示[前文](https://yslin.me/blog/QMNIST)曾提到 ensemble 的概念。我們將使用三個深層[CNN模型](https://github.com/kkweon/mnist-competition)VggNet16, ResNet and VggNet5來進行交通號誌的分類作業。簡言的說 ensemble 模型指的是使用多個模型共同決定分類的推測，而多數決 (Majority voting) 是最常用的 ensemble 的實現方式之一。
 
 ```
+# 資料夾的命名
 #  [1] "00000" "00001" "00002" "00003" "00004" "00005" "00006" "00007" "00008"
 # [10] "00009" "00010" "00011" "00012" "00013" "00014" "00015" "00016" "00017"
 # [19] "00018" "00019" "00020" "00021" "00022" "00023" "00024" "00025" "00026"
 # [28] "00027" "00028" "00029" "00030" "00031" "00032" "00033" "00034" "00035"
 # [37] "00036" "00037" "00038" "00039" "00040" "00041" "00042"
 
+# 各個號誌類別(0，... 42)所包含的樣本數
 #   0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15 
 #  150 1500 1500  960 1320 1260  300  960  960  990 1350  900 1410 1440  540  420 
 #   16   17   18   19   20   21   22   23   24   25   26   27   28   29   30   31 
@@ -24,27 +27,26 @@ summary: 'The post shows how one might use data augumenation to fit a machine-le
 #  180  480  300  810  270  150 1380  210  240  180  180 
 
 ```
+上列程式碼列出圖檔資料夾的命名方式，以及各個號誌類別(0，... 42)所包含的樣本數，下圖展示9張隨機取出的號誌圖案。有些圖案非常的模糊，例如第一行第三欄，它看來似乎是限速70的號誌。此張圖案也許是車輛高速行駛時，攝影機所拍下的影像，準確地辨識這些號誌對於車用號誌辦識系統將有很大助益。
+
 ![Traffic_signs](/traffic_signs.png)
 
-準確地辨識這些號誌對於車用號誌辦識系統將有很大助益，這裡我們展示[前文](https://yslin.me/blog/QMNIST)曾提到ensemble的概念，使用三個深層[CNN模型](https://github.com/kkweon/mnist-competition)VggNet16, ResNet and VggNet5來進行此分類作業。
 
 1. 我們先預處理資料，以便使用Tensorflow套件處理。
+2. 接下來我們將前文 ー [卷積類神經網絡辨識MNIST影像](https://yslin.me/blog/CNN2) ー 的模型建構碼，置換為ResNet，VggNet或VggNet5。
+3. 接著檢驗驗證組的訓練結果。
 
 ```
+# 預處理資料
 python3 preprocess.py "../data/GTSRB/GTSRB-Training_fixed" "tmp_data/GTSRB.pkl" --random_seed 42
-```
 
-2. 接下來我們使用稍微修改[卷積類神經網絡辨識MNIST影像](https://yslin.me/blog/CNN2)模型訓練碼，將模型置換為ResNet，VggNet或VggNet5。
-
-```
+# 訓練模型
 python3 fit_resnet.py 'tmp_data/GTSRB.pkl' "models/resnet_history.pkl" "models/resnet.weights.h5" "models/resnet.keras" --nepoch 30
 
 python3 fit_vgg5.py 'tmp_data/GTSRB.pkl' "models/vgg5_history.pkl" "models/vgg5.weights.h5" "models/vgg5.keras" --nepoch 30
 
 python3 fit_vgg16.py 'tmp_data/GTSRB.pkl' "models/vgg16_history.pkl" "models/vgg16.weights.h5" "models/vgg16.keras" --nepoch 30
 ```
-
-3. 在此我們僅繪製驗證組的訓練結果，因為我們觀注的是模型可否應用在它未遭遇到的資料。
 
 ![Model_performance](/ThreeNets_GTSRB_val.png)
 
@@ -62,34 +64,36 @@ python3 fit_vgg16.py 'tmp_data/GTSRB.pkl' "models/vgg16_history.pkl" "models/vgg
 
 在6660筆的號誌圖檔中，三個模型的誤判數分別為16, 39, 67。
 
-
 4. 接下來我們計算三個模型對測試組的推測，並以多數決來決定最終的預測類別。
 
 ```
-vgg16_prob = vgg16_model.predict(X_test)
-vgg5_prob = vgg5_model.predict(X_test)
+vgg16_prob  = vgg16_model.predict(X_test)
+vgg5_prob   = vgg5_model.predict(X_test)
 resnet_prob = resnet_model.predict(X_test)
-vgg16_pred = np.array([np.argmax(i) for i in vgg16_prob])
-vgg5_pred = np.array([np.argmax(i) for i in vgg5_prob])
+vgg16_pred  = np.array([np.argmax(i) for i in vgg16_prob])
+vgg5_pred   = np.array([np.argmax(i) for i in vgg5_prob])
 resnet_pred = np.array([np.argmax(i) for i in resnet_prob])
 
-# Stack predictions
+# Vertical stack predictions
 predictions = np.vstack((vgg16_pred, vgg5_pred, resnet_pred))
 
-# Find the majority vote for each sample (column)
+# Find the column-wise mode 
 majority_vote = mode(predictions, axis=0)
 ```
 
 多數決模型僅誤判了13張圖檔，達到了99.8%的正確率。下圖印出此13張誤判的圖檔，圖上的標籤顯示，正確類別/預測類別。
 
-
 ![Ensemble_error](/ensemble_error.png)
 
+# 小結
+此文我們展示了資料增強及 ensemble 模型的實作方式，並測試了一項現實生活中的實際應用例子，此兩項機器學習概念可以分別在知覺心理以及認知心理學裡的理論找到其概念根源，但在機器學習上的實現方式，有不少細節的不同須特別注意。
 
 # 註腳
-1. GTSRB (German Traffic Sign Recognition Benchmark (GTSRB) Dataset)
-2. 資料的來源網站有多個不同zip檔案，這兒此指的是GTSRB-Training_fixed.zip檔案。
-3. 資料增強(Data augumentation)，是一統計學術語借用，機器學習指稱些微不同的概念。在知覺心理學中，雖然同一個外界物體的影像，在不同的光照條件下，其物理影像呈現不同，在當觀察者心理上，會將之感知為同一個物體。在機器學習中，資料增強指的是，我們使用軟體，例如Photoshop或是Python script改變同一個影像檔的明暗、模糊程度或是改變環境的光照方式，使同張照片, 同一物體，外觀改變，但僅止於色彩，明暗或是擺放角度等等，實際照片中的內容不變。如此在進行訓練時，資料樣本總數會明顯地增加。
+1. GTSRB (German Traffic Sign Recognition Benchmark)
+2. 資料的來源網站有多個不同zip檔案，這兒此指的是`GTSRB-Training_fixed.zip`檔案。
+3. 資料增強(Data augumentation)是一統計學術語借用，機器學習文獻指稱些微不同的概念。在知覺心理學中，雖然同一個外界物體的影像，在不同的觀察條件下，其物理影像呈現不同，然而觀察者心理上會將這些不同的物理影像感知、解釋為同一個物體，如果它確實是同一個物體。在機器學習中，資料增強指的是，我們使用軟體，例如Photoshop或是任何程式語的的影像操弄方法改變同一個影像檔的明暗、模糊程度或是改變環境的光照方式，使同張照片, 同一物體，外觀改變，例如，色彩，明暗或是擺放角度等等，但實際照片的內容不變。如此在進行訓練時，資料樣本總數會明顯地增加，如下圖不同裁切方式的限速20號誌。
+![Ordered_signs](/ordered_signs.png)
+
 
 # 附錄
 ## 1. 繪製交通號誌的程式碼
