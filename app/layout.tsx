@@ -12,15 +12,15 @@ import Head from 'next/head'
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: 'My Mini-blog',
+    default: 'Statistics',
     template: '%s | My Mini-blog',
   },
-  description: 'This is my mini-blog.',
+  description: 'This blog discusses statistics.',
   openGraph: {
-    title: 'The Mini-blog',
+    title: 'Statistics',
     description: 'This blog discusses various techniques of computational modelling, covering topics in machine-learning, cognition and biological processes.',
     url: baseUrl,
-    siteName: 'Mini-blog',
+    siteName: 'Statistical Programming',
     locale: 'en_US',
     type: 'website',
   },

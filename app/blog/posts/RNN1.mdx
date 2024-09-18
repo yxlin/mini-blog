@@ -1,6 +1,6 @@
 ---
 title: 'Recurrent Neural Network'
-publishedAt: '2024-09-17'
+publishedAt: '2024-09-18'
 summary: 'The post introduces the RNN.'
 ---
 
@@ -136,3 +136,27 @@ tensor_model = tf.keras.layers.SimpleRNN(
 ```
 
 在RNN的類神經網路中，除了如上述單純 Memory cell的實現方式外，為了解決實際計算時的諸多問題，RNN的Memory cells還包含了如LSTM，GRU以及最近非常流行的Transformer，這些不同的Memory cells實現了認知機制數學建模中的許多概念，例如遺忘、選擇性注意力、有限注意力，記憶形態的不同(長期、短期記憶 vs. 工作記憶)等概念。
+
+# 巴赫眾讚歌的例子
+[JSB-Chorales](https://github.com/czhuang/JSB-Chorales-dataset)是一組巴赫眾讚歌的資料集，它收集了382首在公領域的巴赫眾讚歌，這些歌曲是用零以及整數36至81儲存的，這些整數數字代表音符在音譜上的位置，例如 36 代表 C1 音階，81 代表A5音階，而 0 代表休止符。
+
+每一首歌曲以這些整數數值表示，整理成如下矩陣。每一行代表一個時間點，而每一欄代表一個音符，一個時間點，彈奏四個音符。
+```
+# [[74, 70, 65, 58],
+#  [74, 70, 65, 58],
+#  [74, 70, 65, 58],
+#  [74, 70, 65, 58],
+#  [75, 70, 58, 55],
+#  [75, 70, 58, 55],
+#  [75, 70, 60, 55],
+#  ...
+#  [70, 65, 62, 46],
+#  [70, 65, 62, 46],
+#  [70, 65, 62, 46]]
+```
+
+它聽起來大致是如此：
+<audio controls>
+  <source src="/chorale0.mp3" type="audio/mpeg" />
+  Your browser does not support the audio element.
+</audio>
