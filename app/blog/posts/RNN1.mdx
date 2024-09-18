@@ -1,0 +1,138 @@
+---
+title: 'Recurrent Neural Network'
+publishedAt: '2024-09-17'
+summary: 'The post introduces the RNN.'
+---
+
+Recurrent Neural Network (RNN) 是類神經網絡架構其一，它的特性是：
+
+1. RNN 的內在層 (Hidden layers) 有層內迴路 (見下文解釋)，
+2. RNN 多用來處理具時序性的資料，例如語言翻譯，聲音資料等。
+
+相對於線性的類神經網路(如 Perceptron)，訊息傳遞僅限於類神經層之間，同一層的類神經元不會互相影響。RNN使用同一神經層的不同神經元來儲存不同時間點的資料，且這些有時序關係的神經元會相互影響。
+
+
+## 單層Hidden layer的例子
+此範例使用單一內在層，但相似的方法可延伸至多個內在層。和Perceptron類似，輸入層(Input layer) x<sub>t</sub> 的每一個特徵值各乘上權重值, w<sub>wh</sub>，就是影響第一層 Hidden layer 的數值。
+
+```         
+import torch
+import torch.nn as nn
+
+
+# 假設輸入的五個特徵值是1, 1, 1, 1, 1，xt是 1 x 5 的矩陣。
+xt = torch.tensor([[1, 1, 1, 1, 1]])
+
+# wxh 是 5 x 2 的矩陣 (二個類神經元)。 xh代表自輸入層到第一內部層。
+wxh = torch.rand(5, 2)
+
+# bxh 是 1 x 2 的矩陣。第一內部層設置二個節點
+bxh = torch.rand(1, 2)
+
+# hh 代表第一內部層至第二內部層。
+whh = torch.rand(2, 2)
+bhh = torch.rand(1, 2)
+```
+
+<br></br>
+
+<span style={{color: "darkblue"}}>h<sub>t</sub> = x<sub>t</sub> &times; w<sub>xh</sub> + b<sub>xh</sub></span>
+
+上列方程式右側的矩陣運算是：(1 x 5) &times; (5 x 2) + (1 x 2)，所以 h<sub>t</sub> 是 1 x 2 的矩陣。h<sub>t</sub>即輸入層傳至第一層Hidden layer的
+影響。
+
+到此為止的計算方式只是一般迴歸方程式。RNN的不同處是輸入層的每一個特徵值之間有時序上的關係。假設上例的 x<sub>t</sub> 的五個特徵值只是時間點一的數值，且 x<sub>t</sub> 有三個時間點，完整的輸入資料將會是：
+
+```
+x_seq = torch.tensor([[1.0]*5, [2.0]*5, [3.0]*5]).float()
+# tensor([[1., 1., 1., 1., 1.],  # <- 時間點一
+#         [2., 2., 2., 2., 2.],  # <- 時間點二
+#         [3., 3., 3., 3., 3.]]) # <- 時間點三
+```
+
+所以輸入層有三個時間點，五個特徵值。在RNN中， Hidden layer的每一時間點會用一個node表示，而每一個node除了接受來自於輸入層的影響之外，也會受前一個時間點的Hidden node影響。
+
+此時序影響的實現方式稱為Memory Cell。其計算公式如下：
+
+下方的方程式右側的矩陣運算是(1 x 2) &times; (2 x 2) + (1 x 2)，所以 output 是 一個 1 x 2 的矩陣。
+
+<span style={{color: "darkblue"}}>output = tanh(h<sub>t</sub> &times; w<sub>hh</sub> + b<sub>hh</sub>)</span>
+
+在內部層，我們通常會加上一個 Activation Function 轉換轉換迴歸方程式的輸出值，常用的轉換方程式有ReLU及tanh。綜言之，RNN 比 Perceptron 多了時間的向度。Perceptron 計算有類神經層、資料特徵數及樣本數的三個向度，RNN則加上時序的向度，共四個向度，除此之外，有時還須加上協助計算的批次(Batch)向度，因此RNN通常使用五個向度的tensor。
+
+
+```
+out_man = []
+for t in range(3):
+    xt = torch.reshape(x_seq[t], (1, 5))
+    print(f'Time step {t} =>')
+    print('   Input           :', xt.numpy())
+    
+    # 1 x 5 %*% 5 x 2 + 1 x 2 = 1 x 2 
+    ht = torch.matmul(xt, w_xh) + b_xh    
+    print(' Go to Hidden      :', ht.detach().numpy())
+    
+    if t>0:
+        prev_h = out_man[t-1]
+    else:
+        prev_h = torch.zeros((ht.shape))
+    
+    # # 1 x 2 %*% 2 x 2 + 1 x 2 = 1 x 2
+    print('   ht          :', ht.detach().numpy())
+    print('   prev_h      :', prev_h.detach().numpy())
+
+    ot = ht + torch.matmul(prev_h, w_hh) + b_hh
+    ot = torch.tanh(ot)
+    out_man.append(ot)
+    print('   Output (manual) :', ot.detach().numpy())
+    # print('   RNN output      :', out_man[:, t].detach().numpy())
+    print()
+
+# Time step 0 =>
+#    Input           : [[1. 1. 1. 1. 1.]]
+#  Go to Hidden      : [[2.591517  3.7888808]]
+#    ht          : [[2.591517  3.7888808]]
+#    prev_h      : [[0. 0.]]
+#    Output (manual) : [[0.9983715 0.9994927]]
+# 
+# Time step 1 =>
+#    Input           : [[2. 2. 2. 2. 2.]]
+#  Go to Hidden      : [[5.178768 6.611533]]
+#    ht          : [[5.178768 6.611533]]
+#    prev_h      : [[0.9983715 0.9994927]]
+#    Output (manual) : [[0.9999987  0.99999994]]
+# 
+# Time step 2 =>
+#    Input           : [[3. 3. 3. 3. 3.]]
+#  Go to Hidden      : [[7.7660193 9.434184 ]]
+#    ht          : [[7.7660193 9.434184 ]]
+#    prev_h      : [[0.9999987  0.99999994]]
+#    Output (manual) : [[1. 1.]]
+# 
+```
+
+上列程式碼顯示手動計算上述例子的過程。假設輸入資料僅有三個時間點，設置單層內在層，此內在層有二個節點，內在層的輸出值是三個時間點的資料逐次經過迴歸方程式之後的累加結果(因此，在內在層裡，每一時間點影響下一個時間點的數值)。
+
+如此時序影響的計算可以用For loop來了解，實作上，機器學習套件，例如 PyTorch ，是使用 `nn.RNN` 完成。下列程式碼指出輸入層的每筆一資料有五個特徵值， Hidden層有二個nodes，此網絡只有一層內在層，`batch_first=True` 將批次層置於tensor的第一個向度。
+
+```         
+import torch
+import torch.nn as nn
+import tensorflow as tf
+
+# PyTorch
+torch.manual_seed(1)
+torch_model = nn.RNN(input_size=5, hidden_size=2, num_layers=1, 
+                   batch_first=True) 
+
+
+# Tensorflow
+tensor_model = tf.keras.layers.SimpleRNN(
+    units=2,
+    input_shape=(None, 5),
+    return_sequences=True,
+    stateful=False
+)
+```
+
+在RNN的類神經網路中，除了如上述單純 Memory cell的實現方式外，為了解決實際計算時的諸多問題，RNN的Memory cells還包含了如LSTM，GRU以及最近非常流行的Transformer，這些不同的Memory cells實現了認知機制數學建模中的許多概念，例如遺忘、選擇性注意力、有限注意力，記憶形態的不同(長期、短期記憶 vs. 工作記憶)等概念。

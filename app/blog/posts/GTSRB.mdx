@@ -8,7 +8,7 @@ summary: 'The post shows how one might use data augumenation to fit a machine-le
 # GTSRB
 [GTSRB](https://benchmark.ini.rub.de/gtsrb_dataset.html#Downloads)<sup>*1</sup> 資料集收集43種德國的交通號誌。資料集將圖檔分類為43個資料夾，資料夾以五個數字命名，自00000到00042。每一個資料夾儲存一種交通號誌<sup>*2</sup>。每個資料夾包含了多個不同明亮，模糊程度的圖檔(Data augumenation)<sup>*3</sup>。 
 
-此文除了展示 data augumentation 的優點外，還展示[前文](https://yslin.me/blog/QMNIST)曾提到 ensemble 的概念。我們將使用三個深層[CNN模型](https://github.com/kkweon/mnist-competition)VggNet16, ResNet and VggNet5來進行交通號誌的分類作業。簡言的說 ensemble 模型指的是使用多個模型共同決定分類的推測，而多數決 (Majority voting) 是最常用的 ensemble 的實現方式之一。
+此文除了展示 data augumentation 的優點外，還展示[前文](https://yslin.me/blog/QMNIST)曾提到 ensemble 的概念。我們將使用三個深層[CNN模型](https://github.com/kkweon/mnist-competition)VggNet16, ResNet and VggNet5來進行交通號誌的分類作業。簡言的說 ensemble 模型指的是使用多個模型共同決定分類的推測，而多數決是最常用的 ensemble 的實現方式之一。
 
 ```
 # 資料夾的命名
@@ -32,7 +32,7 @@ summary: 'The post shows how one might use data augumenation to fit a machine-le
 ![Traffic_signs](/traffic_signs.png)
 
 
-1. 我們先預處理資料，以便使用Tensorflow套件處理。
+1. 我們先將整理資料，方便Tensorflow處理。
 2. 接下來我們將前文 ー [卷積類神經網絡辨識MNIST影像](https://yslin.me/blog/CNN2) ー 的模型建構碼，置換為ResNet，VggNet或VggNet5。
 3. 接著檢驗驗證組的訓練結果。
 
@@ -91,7 +91,7 @@ majority_vote = mode(predictions, axis=0)
 # 註腳
 1. GTSRB (German Traffic Sign Recognition Benchmark)
 2. 資料的來源網站有多個不同zip檔案，這兒此指的是`GTSRB-Training_fixed.zip`檔案。
-3. 資料增強(Data augumentation)是一統計學術語借用，機器學習文獻指稱些微不同的概念。在知覺心理學中，雖然同一個外界物體的影像，在不同的觀察條件下，其物理影像呈現不同，然而觀察者心理上會將這些不同的物理影像感知、解釋為同一個物體，如果它確實是同一個物體。在機器學習中，資料增強指的是，我們使用軟體，例如Photoshop或是任何程式語的的影像操弄方法改變同一個影像檔的明暗、模糊程度或是改變環境的光照方式，使同張照片, 同一物體，外觀改變，例如，色彩，明暗或是擺放角度等等，但實際照片的內容不變。如此在進行訓練時，資料樣本總數會明顯地增加，如下圖不同裁切方式的限速20號誌。
+3. 資料增強(Data augumentation)借用一個統計學的術語，但是在機器學習文獻中，資料增強指稱些微不同的概念。在知覺心理學討論視覺概念時，雖然同一個外界物體的影像，在不同的觀察條件下，其物理影像呈現不同，但觀察者心理上會將這些不同的物理影像感知、解釋為同一個物體，如果它確實是同一個物體。在機器學習中，資料增強指的是，我們使用軟體，例如Photoshop或是任何程式語的的影像操弄方法改變同一個影像檔的明暗、模糊程度或是改變環境的光照方式，使同張照片, 同一物體，外觀改變，例如，色彩，明暗或是擺放角度等等，但實際照片的內容不變。如此在進行訓練時，資料樣本總數會明顯地增加，如下圖不同裁切方式的限速20號誌。
 ![Ordered_signs](/ordered_signs.png)
 
 
