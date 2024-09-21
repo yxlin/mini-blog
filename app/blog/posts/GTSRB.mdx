@@ -8,7 +8,11 @@ summary: 'The post shows how one might use data augumenation to fit a machine-le
 # GTSRB
 [GTSRB](https://benchmark.ini.rub.de/gtsrb_dataset.html#Downloads)<sup>*1</sup> 資料集收集43種德國的交通號誌。資料集將圖檔分類為43個資料夾，資料夾以五個數字命名，自00000到00042。每一個資料夾儲存一種交通號誌<sup>*2</sup>。每個資料夾包含了多個不同明亮，模糊程度的圖檔(Data augumenation)<sup>*3</sup>。 
 
-此文除了展示 data augumentation 的優點外，還展示[前文](https://yslin.me/blog/QMNIST)曾提到 ensemble 的概念。我們將使用三個深層[CNN模型](https://github.com/kkweon/mnist-competition)VggNet16, ResNet and VggNet5來進行交通號誌的分類作業。簡言的說 ensemble 模型指的是使用多個模型共同決定分類的推測，而多數決是最常用的 ensemble 的實現方式之一。
+此文展示兩項概念：
+1. data augumentation 的優點
+2. [ensemble](https://yslin.me/blog/QMNIST)的概念及實作。
+
+我們將使用三個深層[CNN模型](https://github.com/kkweon/mnist-competition)VggNet16, ResNet and VggNet5來進行交通號誌的分類作業。簡言之 ensemble 模型指的是使用多個模型共同決定分類的推測，而多數決是最常用的 ensemble 的實現方式之一。
 
 ```
 # 資料夾的命名

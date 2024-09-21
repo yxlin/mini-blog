@@ -58,7 +58,7 @@ x_seq = torch.tensor([[1.0]*5, [2.0]*5, [3.0]*5]).float()
 
 <span style={{color: "darkblue"}}>output = tanh(h<sub>t</sub> &times; w<sub>hh</sub> + b<sub>hh</sub>)</span>
 
-在內部層，我們通常會加上一個 Activation Function 轉換轉換迴歸方程式的輸出值，常用的轉換方程式有ReLU及tanh。綜言之，RNN 比 Perceptron 多了時間的向度。Perceptron 計算有類神經層、資料特徵數及樣本數的三個向度，RNN則加上時序的向度，共四個向度，除此之外，有時還須加上協助計算的批次(Batch)向度，因此RNN通常使用五個向度的tensor。
+在內部層，我們通常會加上一個 Activation Function 轉換迴歸方程式的輸出值，常用的轉換方程式有ReLU及tanh。綜言之，RNN 比 Perceptron 多了時間的向度。Perceptron 計算有類神經層、資料特徵數及樣本數的三個向度，RNN則加上時序的向度，共四個向度，除此之外，有時還須加上協助計算的批次(Batch)向度，因此RNN通常使用五個向度的tensor。
 
 
 ```
