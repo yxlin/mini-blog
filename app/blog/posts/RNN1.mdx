@@ -1,6 +1,6 @@
 ---
 title: 'Recurrent Neural Network'
-publishedAt: '2024-09-18'
+publishedAt: '2024-09-26'
 summary: 'The post introduces the RNN.'
 ---
 
@@ -140,12 +140,12 @@ tensor_model = tf.keras.layers.SimpleRNN(
 # 巴赫眾讚歌的例子
 [JSB-Chorales](https://github.com/czhuang/JSB-Chorales-dataset)是一組巴赫眾讚歌的資料集，它收集了382首在公領域的巴赫眾讚歌，這些歌曲是用零以及整數36至81儲存的，這些整數數字代表音符在音譜上的位置，例如 36 代表 C1 音階，81 代表A5音階，而 0 代表休止符。
 
-每一首歌曲以這些整數數值表示，整理成如下矩陣。每一行代表一個時間點，而每一欄代表一個音符，一個時間點，彈奏四個音符。
+每一首歌曲以這些整數數值表示，整理成如下矩陣 (Python 原生的 list資料型態)。每一行代表一個時間點，而每一欄代表一個音符，一個時間點，彈奏四個音符。
 ```
-# [[74, 70, 65, 58],
-#  [74, 70, 65, 58],
-#  [74, 70, 65, 58],
-#  [74, 70, 65, 58],
+# [[74, 70, 65, 58],  # 時間點一
+#  [74, 70, 65, 58],  # 時間點二
+#  [74, 70, 65, 58],  # 時間點三
+#  [74, 70, 65, 58],  # ...
 #  [75, 70, 58, 55],
 #  [75, 70, 58, 55],
 #  [75, 70, 60, 55],
@@ -160,3 +160,194 @@ tensor_model = tf.keras.layers.SimpleRNN(
   <source src="/chorale0.mp3" type="audio/mpeg" />
   Your browser does not support the audio element.
 </audio>
+
+上面的矩陣將每一個時間點儲存為一個Python `list`，如[70, 65, 62, 46]。加上上例的歌曲有有192個時間點，所以它有192 個`list`，這些`list`被儲存在一個大的 `list` 之中。
+
+因為tensorflow或是PyTorch等套件必須自由地在CPU或GPU，或者兩者上進行運算，加上CPU及GPU所能直接使用的記憶體是不同的硬體單元，Python的原生資料型態預設使用CPU及其記憶體來運算，所以我們必須將 `list` 的資料型態轉換為tensor，如此方能自由地在CPU及GPU的運算空間運作。下面用`train_chorales`作為範別說明。 
+
+在下載檔案後，我們可以使用一個簡單的自訂函數，將分別位於三個資料夾中的音樂檔讀入。
+
+```
+import pandas as pd
+
+
+def load_chorales(files, path):
+    filepaths = [path + file for file in files]  
+    out = [pd.read_csv(filepath).values.tolist() for filepath in filepaths]
+    return out
+
+
+train_path = '../../data/jsb_chorales/train/'
+valid_path = '../../data/jsb_chorales/valid/'
+test_path = '../../data/jsb_chorales/test/'
+train_files =  sorted( os.listdir(train_path) )
+valid_files =  sorted( os.listdir(valid_path) )
+test_files  =  sorted( os.listdir(test_path) )
+
+train_chorales = load_chorales(train_files, train_path)
+valid_chorales = load_chorales(valid_files, valid_path)
+test_chorales = load_chorales(test_files, test_path)
+```
+
+我們可以使用 Python 中的`set`資料型態將訓練組，驗證組及測試組的資料檔都收集在一個`set`之中，並找出總共使用了多了音符，最高音及最低音。
+```
+notes = set()
+for chorales in (train_chorales, valid_chorales, test_chorales):
+    for chorale in chorales:
+        for chord in chorale:
+            # This line converts the chord into a set and performs a union operation (|=) with the notes set. This means it adds all unique elements from chord to notes.
+            notes |= set(chord)
+
+n_notes = len(notes) # 47
+min_note = min(notes - {0})
+max_note = max(notes)
+
+```
+
+## 如何決定時序資料裡的「特徵值」及「目標值」？
+時序資料與非時序資料略為不同的一點在於，它通常沒有顯而易見的特徵值及目標值的分別。比方說，在笑容分類作業裡，我們可以定義目標值為一張照片裡的人臉是否展現笑容，若是則記錄為1，若否則記錄為0，如此毎張照片有其像素值做為特徵值，而照片是否呈現笑容則為目標值。此原則無法直接適用在時序資料。
+
+以下解釋一項稱為Sequence to Sequence的時序資料整理方法，此方法的指導原則是希望有較早時間點的一小段(例如5個時間點)資料作為特徵值，而此段資料所對應的目標值則是後移一小段時間，等長資料段落，且此資料段落有部份資料是和特徵值的資料有時間上的重疊。以下我們使用眾讚歌範例來說明。
+
+1. 首先，`tf.ragged.constant`函數將上面的 nested `list` 的 Python資料型態轉換為tensor。 `chorales` tensor是一個 229 x 1 的列向量，包含229首歌曲(讀取為229個csv檔案)，此tensor裡面使用一個 numpy 向量記錄每一首歌的時間長度，例如第一個csv檔案有192個時間點，而第二個檔案有228個時間點。
+
+chorales的每一個元素，例如chorales[0]代表一首歌曲，也同時被轉換為tensor的資料型態。
+
+```
+import tensorflow as tf
+
+
+chorales = tf.ragged.constant(train_chorales, ragged_rank=1)
+# chorales.row_lengths()
+# <tf.Tensor: shape=(229,), dtype=int64, numpy=
+# array([192, 228, 208, 432, 260, ... 228, 164])>
+
+chorales[0]
+# <tf.Tensor: shape=(192, 4), dtype=int32, numpy=
+# array([[74, 70, 65, 58],
+#        [74, 70, 65, 58],
+#        [74, 70, 65, 58],
+#        [74, 70, 65, 58],
+#    ...       ])
+```
+
+
+
+2. 接下來我們用 `tf.data.Dataset.from_tensor_slices`函數將 chorales tensor轉換為 tensorflow 套件中的 Dataset 類別 (Class) ，如此我們可以使用此類別裡的函數來方便處理資料。
+
+```
+dataset = tf.data.Dataset.from_tensor_slices(chorales)
+```
+
+Dataset類別裡的`map` 及 `flat_map` 函數會將Dataset裡的每一首歌曲作為輸入，送進`to_windows`的自定函數中處理。`map`或`flat_map`的區別在於是否將輸出的資料的向度平面化。`map`不改變輸出向度，`flat_map`會改變輸出向度。
+
+```
+dataset.flat_map(to_windows)
+```
+
+
+3. 在`to_windows`函數中，我們再一次使用`tf.data.Dataset.from_tensor_slices`將個別的歌曲轉換為tensorflow的Dataset類別，一樣地，如此做是為了方便使用此類別的函數處理每一首歌曲的內容。
+
+4. 比方說，我們決定視六個連續的時間點為一筆樣本，移動三個時間點，再取五個連續時間點，作為下一筆樣本，以此類推，到了資料的尾端，如果剩下的資料不足五個時間點，則捨棄剩餘資料。
+
+
+```
+window_size = 5
+window_shift = 3
+
+train_dataset0 = tf.data.Dataset.from_tensor_slices(chorales[0])
+train_dataset0 = train_dataset0.window(
+    window_size + 1, window_shift, drop_remainder=True
+)
+
+# for i, item in enumerate(train_dataset0.take(3)):
+#     print(i, item)
+# 0 tf.Tensor(
+# [[74 70 65 58]
+#  [74 70 65 58]
+#  [74 70 65 58]
+#  [74 70 65 58]
+#  [75 70 58 55]
+#  [75 70 58 55]], shape=(6, 4), dtype=int32)
+# 1 tf.Tensor(
+# [[74 70 65 58]
+#  [75 70 58 55]
+#  [75 70 58 55]
+#  [75 70 60 55]
+#  [75 70 60 55]
+#  [77 69 62 50]], shape=(6, 4), dtype=int32)
+# 2 tf.Tensor(
+# [[75 70 60 55]
+#  [75 70 60 55]
+#  [77 69 62 50]
+#  [77 69 62 50]
+#  [77 69 62 50]
+#  [77 69 62 50]], shape=(6, 4), dtype=int32)
+
+```
+
+使用`flat_map`的函數，我們可以將資料整理成上面所示。每一筆樣本是一個 6 x 4的tensor。
+
+5. 最後，我們將每一筆樣本用`tf.where`轉換。此函數如同一個`ifesle`語法，將數值0維持原樣，將其他數值減去35 (window - min_note + 1)，所以原來代表C1音符的36，改為1，而原來代表A5音符的81變為46。
+
+6. `tf.reshape(window, [-1])`將上示的6 x 4矩陣換為為 1 x 24的列向量。
+
+```
+def preprocess(window):
+    window = tf.where(window == 0, window, window - min_note + 1) 
+    return tf.reshape(window, [-1]) 
+for i, item in enumerate(chorales.take(3)):
+    print(i, item)
+
+# 0 tf.Tensor([39 35 30 23 39 35 30 23 39 35 30 23 39 35 30 23 40 35 23 20 40 35 23 20], shape=(24,), dtype=int32)
+# 1 tf.Tensor([39 35 30 23 40 35 23 20 40 35 23 20 40 35 25 20 40 35 25 20 42 34 27 15], shape=(24,), dtype=int32)
+# 2 tf.Tensor([40 35 25 20 40 35 25 20 42 34 27 15 42 34 27 15 42 34 27 15 42 34 27 15], shape=(24,), dtype=int32)
+
+```
+
+7. 最後我們使用Dataset類別裡的 `batch`函數將，每兩筆樣本收集為一個批次處理單元，並將代表音符的1到23個數值做為樣本，`[:, :-1]`代表除了最後一欄的所有的欄位)，以上面的 0 tf.Tensor為例，即，
+```
+# 第一批次中的第一筆樣本
+[39 35 30 23 39 35 30 23 39 35 30 23 39 35 30 23 40 35 23 20 40 35 23]
+```
+
+並將第二個數值至最後一欄的數值為目標，`[:, 1:]`代表從第二欄開始至最後一欄的。因為Python以0開始計次，所以1代表第二個數值。加上之前的`tf.reshape(window, [-1])`函數已經將每一個樣本整理為行向量，所以每一筆樣本只有一行。
+
+```
+# 第一批次中的第一筆目標
+[35 30 23 39 35 30 23 39 35 30 23 39 35 30 23 40 35 23 20 40 35 23 20]
+```
+
+下面列出一個印出的例子。
+
+```
+def create_target(batch):
+    X = batch[:, :-1]
+    Y = batch[:, 1:] # predict next note in each arpegio, at each step
+    return X, Y
+
+# 每一個批次有兩筆樣本
+batch_size = 2
+chorales = chorales.batch(batch_size)
+
+# 0 tf.Tensor(
+# [[39 35 30 23 39 35 30 23 39 35 30 23 39 35 30 23 40 35 23 20 40 35 23 20]
+#  [39 35 30 23 40 35 23 20 40 35 23 20 40 35 25 20 40 35 25 20 42 34 27 15]], shape=(2, 24), dtype=int32)
+# 1 tf.Tensor(
+# [[40 35 25 20 40 35 25 20 42 34 27 15 42 34 27 15 42 34 27 15 42 34 27 15]
+#  [42 34 27 15 42 34 27 15 42 34 27 15 42 35 27 20 42 35 27 20 42 34 27 20]], shape=(2, 24), dtype=int32)
+
+# 將每一筆樣本，整理為(樣本，目標)的資料集
+chorales= chorales.map(create_target)
+
+# 0 tf.Tensor(
+# [[39 35 30 23 39 35 30 23 39 35 30 23 39 35 30 23 40 35 23 20 40 35 23]
+#  [39 35 30 23 40 35 23 20 40 35 23 20 40 35 25 20 40 35 25 20 42 34 27]], shape=(2, 23), dtype=int32) tf.Tensor(
+# [[35 30 23 39 35 30 23 39 35 30 23 39 35 30 23 40 35 23 20 40 35 23 20]
+#  [35 30 23 40 35 23 20 40 35 23 20 40 35 25 20 40 35 25 20 42 34 27 15]], shape=(2, 23), dtype=int32)
+# 1 tf.Tensor(
+# [[40 35 25 20 40 35 25 20 42 34 27 15 42 34 27 15 42 34 27 15 42 34 27]
+#  [42 34 27 15 42 34 27 15 42 34 27 15 42 35 27 20 42 35 27 20 42 34 27]], shape=(2, 23), dtype=int32) tf.Tensor(
+# [[35 25 20 40 35 25 20 42 34 27 15 42 34 27 15 42 34 27 15 42 34 27 15]
+#  [34 27 15 42 34 27 15 42 34 27 15 42 35 27 20 42 35 27 20 42 34 27 20]], shape=(2, 23), dtype=int32)    
+```
