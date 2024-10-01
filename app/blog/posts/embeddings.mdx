@@ -1,0 +1,16 @@
+---
+title: 'Word Embedding'
+publishedAt: '2024-10-01'
+summary: 'The post reviews a tutorial in Tensorflow tutorial about word embeddings.'
+---
+
+不論是建立語言翻譯的模型或是推測新字的模型，此類的工作可以被歸類於時序資料分析。然而面對語言資料分析的第一個問題是，我們必須先將語言用數值資料來表示？
+
+在如巴赫讚歌的簡單音樂資料，我們或許可以建立一個整數數值和音符的對應表，而後用整數數值來表達音符；在影像或錄影資料我們可以使用影像的像素數值，但是語言資料該如何轉換至數值空間呢？
+
+目前最流行的方法之一是一種稱為`embedding`的方法，簡單地說，`embedding`將每個具有個別意義的字或詞用一個浮點數來表示，而此浮點數的指派是根據一個事先建立的大型字詞庫的數值表徵，每一個字或詞的數值是相對於其他字、詞在此語言空間的相對位置。
+
+Tensorflow的 Embedding projector 線上軟體使用PCA的方法建立了一個視覺化表徵。
+
+![Embedding_example](/embedding1.png)
+[未完]
