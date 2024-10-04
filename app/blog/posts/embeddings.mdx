@@ -1,16 +1,201 @@
 ---
 title: 'Word Embedding'
-publishedAt: '2024-10-01'
-summary: 'The post reviews a tutorial in Tensorflow tutorial about word embeddings.'
+publishedAt: '2024-10-04'
+summary: 'The post discusses the idea of word embeddings.'
 ---
 
-不論是建立語言翻譯的模型或是推測新字的模型，此類的工作可以被歸類於時序資料分析。然而面對語言資料分析的第一個問題是，我們必須先將語言用數值資料來表示？
+不論是建立語言翻譯的模型或是推測新字的模型，都可被歸類為時序資料分析工作，個中原因：除了第一個字，一個句子中的每一個字的產生都是接續著前一個字或是之前字或詞的文意所決定。面對語言資料的首要問題是，我們該如何將語言資料數值化？
 
-在如巴赫讚歌的簡單音樂資料，我們或許可以建立一個整數數值和音符的對應表，而後用整數數值來表達音符；在影像或錄影資料我們可以使用影像的像素數值，但是語言資料該如何轉換至數值空間呢？
+或許我們可以仿巴赫讚歌的例子建立一個整數數值和音符的對應表，使用整數數值來表達句子中每一個字義的基本單元(字元)。
 
-目前最流行的方法之一是一種稱為`embedding`的方法，簡單地說，`embedding`將每個具有個別意義的字或詞用一個浮點數來表示，而此浮點數的指派是根據一個事先建立的大型字詞庫的數值表徵，每一個字或詞的數值是相對於其他字、詞在此語言空間的相對位置。
+目前最流行的方法之一是一種稱為`embedding`的方法，它的基礎和對應表的方法有些關係，並加以延申。簡單地說，`embedding`將每個具有個別意義的字或詞用一個浮點數的向量來表示，單一個向量裡的每一個數值，代表著一個特徵值，因此每一個字元便有著多個特徵值，這些特徵值代表著字元在語料庫空間中的某一特別向度的權重值。
 
-Tensorflow的 Embedding projector 線上軟體使用PCA的方法建立了一個視覺化表徵。
+Tensorflow的 Embedding projector 線上軟體使用PCA的方法建立了一三維個視覺化表徵，協助了解 Embedding的概念。
 
-![Embedding_example](/embedding1.png)
+![Embedding_projector](/embedding1.png)
+
+在三維空間上，我們假設一個向量有三個特徵值，但實際的應用上，我們可以會使用更高的空間向量(Hyperspace)來表達每一個字元。
+
+我們可以借前文的「音符-整數」對照表來了解`embeddings`的優點，「音符-整數」對照表僅保存了音符間的順序關係，若應用類似的方法或許我們可以保留字頻之間的關係(一維)，因為`embedding`是將每一個字元轉換至高向度的空間來表達，所以它除了可以保留字頻外，還可以保留其他字元間的關係，如字義、相似性等等。
+
+# StackOverflow的例子
+Stack Overflow是一個程式語言的問答論壇，Tensorflow 的語言資料集中收集了一組取自於[Stack Overflow的問題集](https://storage.googleapis.com/download.tensorflow.org/data/stack_overflow_16k.tar.gz)。此資料集將每一個問題存在一個文字檔裡面，並將這些檔案細心地分為四個類別：CSharp，Java，Javascript 和 Python的問題。
+
+在Tensorflow的[教學說明](https://www.tensorflow.org/tutorials/load_data/text#download_more_datasets_using_tensorflow_datasets_tfds)文件展示了如何使用Tensorflow來進行此分類作業來幫助了解如何使用Tensorflow的工具進行語言資料分析。以下我們用這個例子，使用PyTorch來了解語言資料的處理方法。
+
+## 1. 讀入資料
+首先，我們印出此資料集訓練組，屬於CSharp類別的第一個文字檔，來看看資料的原始內容。
+
+```
+import pathlib
+import os
+
+
+dataset_dir = "~/datasets/stack_overflow_16k/train/csharp/"
+csharp_dir = pathlib.Path(dataset_dir)
+files = os.listdir(csharp_dir)
+file = dataset_dir + files[0]
+with open(file, 'r', encoding='utf-8') as f:
+    text = f.read()
+
+# 印出前100個字元(character)
+print(text[:100])        
+
+# "how to aovid flickering of richtextbox when the text is 
+# scrolling down fast? i have a richtextbox w"
+
+```
+
+一如往常，我們先將所有的資料檔讀入記憶體中，因為此資料集已經被分類為訓練組及測試組兩個資料夾，我們將屬於訓練組資料夾中的問題再分類為訓練組及驗證組。
+
+```
+import torch
+from torch.utils.data import random_split
+
+FOLDER_NAMES = ['csharp', 'java', 'javascript', 'python']
+LABELS = {folder: idx for idx, folder in enumerate(FOLDER_NAMES)}
+dataset_dir = "~/datasets/stack_overflow_16k/"
+train_dir = pathlib.Path(dataset_dir + "train/")
+test_dir = pathlib.Path(dataset_dir + "test/")
+
+
+def read_data(directory):
+    files_list, labels_list = [], []
+
+    for folder in FOLDER_NAMES:
+        file_dir = directory / folder
+        files = os.listdir(file_dir)
+
+        for file in files:
+            file_path = file_dir / file
+
+            with open(file_path, 'r', encoding='utf-8') as f:
+                files_list.append(f.read())
+
+            labels_list.append(LABELS[folder])
+
+    return labels_list, files_list
+
+train_labels, train_files = read_data(train_dir)
+test_labels, test_files = read_data(test_dir)
+train_ds = [(label, text) for label, text in zip(train_labels, train_files)]
+test_ds = [(label, text) for label, text in zip(test_labels, test_files)]
+
+
+
+total_size = len(train_ds)
+train_size = int(0.8 * total_size)    # 80% for training
+valid_size = total_size - train_size  # 20% for validation
+
+train_dataset, valid_dataset = random_split(train_ds, [train_size, valid_size])
+test_dataset = test_ds
+
+print(train_dataset[0])
+
+# (3,
+# '"can\'t understand the result of innerclass i has met a problem when i was learning innerclass of blank...)
+```
+
+## 2. Tokenization
+到此為止，文字資料仍然維持其原始樣貌。將原始文字轉換為數值的第一步通常是`tokenize`，即將上面的句子的切割為個別意義單元，此最單元通稱為`token`。此步驟通常會將對文字分析沒有影響的字元移除或改變，例如將所有的字母改為小寫，移除表情符號、空白鍵或標點符號等等。Tensorflow及PyTorch套件，或是它們的支援套件都附有標準的tokenization函式，或者我們也可以使用自製函式，例如：
+
+```
+def tokenizer(text):
+    text = re.sub('<[^>]*>', '', text)
+    emoticons = re.findall('(?::|;|=)(?:-)?(?:\)|\(|D|P)', text.lower())
+    text = re.sub('[\W]+', ' ', text.lower()) +\
+        ' '.join(emoticons).replace('-', '')
+    tokenized = text.split()
+    return tokenized
+
+# 前例tokenize之後變為，如下所印出的各別字彙的list。 
+tokenizer(example0)
+
+#['can',
+# 't',
+# 'understand',
+# 'the',
+# ...
+#]
+```
+
+## 3. Ranking
+第三步是將字庫(Corpus)中的token依照特定原則將之排序，最常使用的原則是使用出現次數(字頻)。我們通常會使用整個訓練組做為字庫，為了解釋`Ranking`的概念，以下僅用單一個句子做為字庫。比方說，我們將此句子：
+
+"cats like playing, and they just can't help to play with other cats. They just meow, meow, meow"
+
+做為字庫，將其tokenize之後，我們會得到19個tokens，它們的字頻對照表。
+
+```
+ID     Token  Count
+0      meow      3
+1      cats      2
+2      they      2
+3      just      2
+4      like      1
+5   playing      1
+6       and      1
+7       can      1
+8         t      1
+9      help      1
+10       to      1
+11     play      1
+12     with      1
+13    other      1
+```
+如此我們就可以得到一個和之前巴赫音樂相仿的對照表。此對照表只有字頻之間的關係，如前文所解釋，RNN讀入時序資料時，會使用內部層的節點來保留時序關係。若我們使用ID欄位做為字完的數值表徵，此例讀入時，會保持如下的時序關係，token之間維持順序關係，此即初等統計學中的`ordinary variable`的概念。
+
+```
+ID     Token  Count
+1      cats      2
+4      like      1
+5   playing      1
+6       and      1
+2      they      2
+3      just      2
+7       can      1
+8         t      1
+9      help      1
+10       to      1
+11     play      1
+12     with      1
+13    other      1
+0      meow      3
+
+```
+## 4. Embedding
+`Embedding`使用continuous variable的概念取代ordinary variable，相比於僅用字頻排序的靜態對照表來代表字庫中的每個字元，`embedding`使用多個浮點數來代表每個字元，並讓RNN模型，根據資料去最佳化這些浮點數。以這個單一句子的字庫為例子說明，若我們決定使用三個特徵值，我們可以將此字庫使用如下右方的`embedding`矩陣表示。矩陣中的r0_1，r1_1等等變數，其實際數值是使用訓練組的資料最佳化之後產生。
+
+![Embedding_matrix](/embedding2.png)
+
+建立上方特徵值矩陣時，有時我們會在字庫總字元數加上二個額外的字元，其一代表字庫中從未出現的字元，其二代表`padding`字元。前者是因為有時測試組及驗證組會包含一些字元未在訓練組之中，而後者則是因為矩陣運算時，我們必須維持向量長度的一致。以下我們使用此例，並用PyTorch的函式產生一組初始`embedding`矩陣。
+
+```
+torch.manual_seed(1)
+embedding = nn.Embedding(num_embeddings=14+2, # nwords + 2
+                         embedding_dim=3, 
+                         padding_idx=15)
+ 
+text_encoded_input = torch.LongTensor([[1, 4, 5, 6, 2, 
+3, 7, 8, 9, 10,
+11, 12, 13, 0]])
+
+print(embedding(text_encoded_input))
+# tensor([[[-1.6095, -0.1002, -0.6092],
+#          [-0.2223,  1.6871,  0.2284],
+#          [ 0.4676, -0.6970, -1.1608],
+#          [ 0.6995,  0.1991,  0.8657],
+#          [-0.9798, -1.6091, -0.7121],
+#          [ 0.3037, -0.7773, -0.2515],
+#          [ 0.2444, -0.6629,  0.8073],
+#          [ 1.1017, -0.1759, -2.2456],
+#          [-1.4465,  0.0612, -0.6177],
+#          [-0.7981, -0.1316,  1.8793],
+#          [-0.0721,  0.1578, -0.7735],
+#          [ 0.1991,  0.0457,  0.1530],
+#          [-0.4757, -0.1110,  0.2927],
+#          [-1.5256, -0.7502, -0.6540]]])
+
+```
+
 [未完]
