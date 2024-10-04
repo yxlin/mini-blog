@@ -196,4 +196,227 @@ print(embedding(text_encoded_input))
 
 ```
 
-[未完]
+我們可以使用`torchtext`的vocab函式來建立字頻對照表。
+
+```
+from torchtext.vocab import vocab
+from collections import Counter, OrderedDict
+
+
+token_counts = Counter()
+
+for label, text in train_dataset:
+    tokens = tokenizer(text)
+    token_counts.update(tokens)
+    
+sorted_by_freq_tuples = sorted(token_counts.items(), 
+                               key=lambda x: x[1], reverse=True)
+ordered_dict = OrderedDict(sorted_by_freq_tuples)
+vocab = vocab(ordered_dict)
+
+# 這兒在對照表表中加入0及1，分別代表padding及未知字元。
+vocab.insert_token("<pad>", 0)
+vocab.insert_token("<unk>", 1)
+vocab.set_default_index(1)
+
+nword = len(token_counts)
+
+print('Vocab-size:', nword)
+print(sorted_by_freq_tuples[:3])
+
+```
+
+PyTorch使用Data loader的資料型態，在定義Data loader時，我們可以一個中介函數，將原始文字資料轉換為字頻對照表的整數數值。
+
+```
+import torch.nn as nn
+
+
+device = torch.device("cuda:0")
+text_pipeline = lambda x: [vocab[token] for token in tokenizer(x)]
+
+def collate_batch(batch):
+    label_list, text_list, lengths = [], [], []
+    
+    for _label, _text in batch:
+
+        label_list.append(_label)
+        processed_text = torch.tensor(text_pipeline(_text), 
+                                      dtype=torch.int64)
+        text_list.append(processed_text)
+        
+        # 記錄每一條問題的字元數
+        lengths.append(processed_text.size(0))
+        
+    label_list = torch.tensor(label_list)
+    lengths = torch.tensor(lengths)
+    
+    padded_text_list = nn.utils.rnn.pad_sequence(
+        text_list, batch_first=True)
+    return padded_text_list.to(device), label_list.to(device), lengths.to(device)   
+
+from torch.utils.data import DataLoader
+
+
+batch_size = 32  
+
+train_dl = DataLoader(train_dataset, batch_size=batch_size,
+                      shuffle=True, collate_fn=collate_batch)
+valid_dl = DataLoader(valid_dataset, batch_size=batch_size,
+                      shuffle=False, collate_fn=collate_batch)
+test_dl = DataLoader(test_dataset, batch_size=batch_size,
+                     shuffle=False, collate_fn=collate_batch)
+```
+
+# 小結
+使用了在兩層LSTM的內在層，在驗證組僅達到約75%的正確率，和Tensorflow所得到的結果有相當的差距，或許改變節點數、`embedding`的特徵數，或是再增加類神經網絡的層數可以增進RNN模型的推測準確率，另外樣本數僅有8,000筆，以及總字元數僅達46000多也許是另一個問題所在。
+
+# 附錄
+
+## RNN模型
+RNN的第一步驟將每一條問題轉換為`embedding`的格式。
+
+
+```
+import torch
+import torch.nn as nn
+
+class RNN(nn.Module):
+    def __init__(self, vocab_size, embed_dim, rnn_hidden_size, fc_hidden_size, num_classes):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size + 2, embed_dim, padding_idx=0)
+        self.rnn1 = nn.LSTM(embed_dim, rnn_hidden_size, batch_first=True, dropout=0.5, bidirectional=True)
+        self.rnn2 = nn.LSTM(rnn_hidden_size * 2, rnn_hidden_size, batch_first=True, dropout=0.5, bidirectional=True)
+        self.fc1 = nn.Linear(rnn_hidden_size * 2, fc_hidden_size)  # *2 for bidirectional
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(fc_hidden_size, num_classes)
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, text, lengths):
+        out = self.embedding(text)
+        out = nn.utils.rnn.pack_padded_sequence(out, lengths.cpu().numpy(), enforce_sorted=False, batch_first=True)
+        out, (hidden, cell) = self.rnn1(out)
+        out, _ = nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
+        out = nn.utils.rnn.pack_padded_sequence(out, lengths.cpu().numpy(), enforce_sorted=False, batch_first=True)
+        out, (hidden, cell) = self.rnn2(out)
+        out = torch.cat((hidden[-2,:,:], hidden[-1,:,:]), dim=1)  # Concatenate the outputs from both directions
+        out = self.fc1(out)
+        out = self.relu(out)
+        out = self.fc2(out)
+        out = self.softmax(out)
+        return out
+
+
+
+
+def train(dataloader):
+    model.train()
+    total_acc, total_loss = 0, 0
+
+    for text_batch, label_batch, lengths in dataloader:
+        optimizer.zero_grad()
+        pred = model(text_batch, lengths)
+        predicted_label = torch.argmax(pred, dim = 1)
+        
+        loss = loss_fn(pred, label_batch)
+        loss.backward()
+        optimizer.step()
+        
+        acc_vec = predicted_label == label_batch
+        total_acc += acc_vec.float().sum().item()
+        total_loss += loss.item()*label_batch.size(0)
+
+    return total_acc/len(dataloader.dataset), total_loss/len(dataloader.dataset)
+ 
+def evaluate(dataloader):
+    model.eval()
+    total_acc, total_loss = 0, 0
+
+    with torch.no_grad():
+        for text_batch, label_batch, lengths in dataloader:
+            pred = model(text_batch, lengths)
+            predicted_label = torch.argmax(pred, dim = 1)
+            
+            loss = loss_fn(pred, label_batch)
+            acc_vec = predicted_label == label_batch
+            total_acc += acc_vec.float().sum().item()
+            total_loss += loss.item()*label_batch.size(0)
+
+    return total_acc/len(dataloader.dataset), total_loss/len(dataloader.dataset)
+
+```
+
+## Hyperparameters
+
+```
+vocab_size = len(vocab)
+embed_dim = 128  # n of feature
+rnn_hidden_size = 64
+fc_hidden_size = 64
+
+nclass = len(FOLDER_NAMES)
+
+torch.manual_seed(1)
+model = RNN(vocab_size, embed_dim, rnn_hidden_size, fc_hidden_size, nclass) 
+model = model.to(device)
+
+loss_fn = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+
+```
+
+## PyTorch最佳化過程
+
+```
+num_epochs = 30
+
+for epoch in range(num_epochs):
+    acc_train, loss_train = train(train_dl)
+    acc_valid, loss_valid = evaluate(valid_dl)
+    print(
+        f"Epoch {epoch} [accuracy loss]: {acc_train:.3f} {loss_train:.2f}, [val_accuracy loss]: {acc_valid:.3f} {loss_valid:,.2f}"
+    )
+# Epoch 0 [accuracy loss]: 0.379 1.32, [val_accuracy loss]: 0.402 1.29
+# Epoch 1 [accuracy loss]: 0.485 1.24, [val_accuracy loss]: 0.419 1.29
+# Epoch 2 [accuracy loss]: 0.549 1.19, [val_accuracy loss]: 0.586 1.14
+# Epoch 3 [accuracy loss]: 0.647 1.09, [val_accuracy loss]: 0.579 1.15
+# Epoch 4 [accuracy loss]: 0.680 1.06, [val_accuracy loss]: 0.614 1.11
+# Epoch 5 [accuracy loss]: 0.722 1.02, [val_accuracy loss]: 0.662 1.08
+# Epoch 6 [accuracy loss]: 0.755 0.99, [val_accuracy loss]: 0.694 1.05
+# Epoch 7 [accuracy loss]: 0.801 0.94, [val_accuracy loss]: 0.713 1.02
+# Epoch 8 [accuracy loss]: 0.829 0.91, [val_accuracy loss]: 0.716 1.02
+# Epoch 9 [accuracy loss]: 0.845 0.90, [val_accuracy loss]: 0.719 1.02
+# Epoch 10 [accuracy loss]: 0.874 0.87, [val_accuracy loss]: 0.738 1.00
+# Epoch 11 [accuracy loss]: 0.887 0.86, [val_accuracy loss]: 0.734 1.01
+# Epoch 12 [accuracy loss]: 0.903 0.84, [val_accuracy loss]: 0.739 1.00
+# Epoch 13 [accuracy loss]: 0.919 0.82, [val_accuracy loss]: 0.745 0.99
+# Epoch 14 [accuracy loss]: 0.916 0.83, [val_accuracy loss]: 0.746 0.99
+# Epoch 15 [accuracy loss]: 0.921 0.82, [val_accuracy loss]: 0.710 1.03
+# Epoch 16 [accuracy loss]: 0.934 0.81, [val_accuracy loss]: 0.742 0.99
+# Epoch 17 [accuracy loss]: 0.944 0.80, [val_accuracy loss]: 0.744 1.00
+# Epoch 18 [accuracy loss]: 0.950 0.79, [val_accuracy loss]: 0.756 0.98
+# Epoch 19 [accuracy loss]: 0.951 0.79, [val_accuracy loss]: 0.761 0.98
+# Epoch 20 [accuracy loss]: 0.947 0.80, [val_accuracy loss]: 0.756 0.98
+# Epoch 21 [accuracy loss]: 0.962 0.78, [val_accuracy loss]: 0.763 0.98
+# Epoch 22 [accuracy loss]: 0.966 0.78, [val_accuracy loss]: 0.764 0.98
+# Epoch 23 [accuracy loss]: 0.968 0.78, [val_accuracy loss]: 0.754 0.99
+# Epoch 24 [accuracy loss]: 0.969 0.77, [val_accuracy loss]: 0.742 1.00
+# Epoch 25 [accuracy loss]: 0.964 0.78, [val_accuracy loss]: 0.754 0.99
+# Epoch 26 [accuracy loss]: 0.968 0.78, [val_accuracy loss]: 0.752 0.99
+# Epoch 27 [accuracy loss]: 0.961 0.78, [val_accuracy loss]: 0.736 1.00
+# Epoch 28 [accuracy loss]: 0.962 0.78, [val_accuracy loss]: 0.748 0.99
+# Epoch 29 [accuracy loss]: 0.970 0.77, [val_accuracy loss]: 0.750 0.99
+# 
+```
+
+## 測試組評估。
+
+```
+acc_test, loss_test = evaluate(test_dl)
+print(f'test_accuracy: {acc_test:.4f} {loss_test:.2f}') 
+
+weight_path = 'models/stackoverflow_model.pth'
+torch.save(model.state_dict(), weight_path)
+
+```
