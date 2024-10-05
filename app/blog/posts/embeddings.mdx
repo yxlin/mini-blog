@@ -4,7 +4,7 @@ publishedAt: '2024-10-04'
 summary: 'The post discusses the idea of word embeddings.'
 ---
 
-不論是建立語言翻譯的模型或是推測新字的模型，都可被歸類為時序資料分析，個中原因：除了第一個字，一個句子中的每一個字的產生都和前面的文意所所關係。分析語言資料的首要問題是，如何將語言資料數值化？
+不論是建立語言翻譯的模型或是推測新字的模型，都可被歸類為時序資料分析，個中原因：除了第一個字，一個句子中的每一個字的產生都和前面的文意有所關係。分析語言資料的首要問題是，如何將語言資料數值化？
 
 或許我們可以仿巴赫讚歌的例子建立一個數值和音符的對應表，使用整數數值來表達句子中每一個字義的基本單元(字元)。
 
@@ -19,7 +19,7 @@ summary: 'The post discusses the idea of word embeddings.'
 # StackOverflow的例子
 Stack Overflow是一個程式語言的問答論壇，Tensorflow 的語言資料集中收集了一組取自於[Stack Overflow的問題集](https://storage.googleapis.com/download.tensorflow.org/data/stack_overflow_16k.tar.gz)。此資料集將每一個問題儲存於一個文字檔裡面，並將這些檔案細心地分為四個類別：C#，Java，Javascript 和 Python的問題。
 
-在Tensorflow的[教學說明](https://www.tensorflow.org/tutorials/load_data/text#download_more_datasets_using_tensorflow_datasets_tfds)文件說明了如何使用Tensorflow來進行此分類作業來幫助了解如何使用Tensorflow的工具進行語言資料分析。以下我們用這個資料集及PyTorch來說明`embedding`的概念。
+在Tensorflow的[教學說明](https://www.tensorflow.org/tutorials/load_data/text#download_more_datasets_using_tensorflow_datasets_tfds)文件說明了如何使用Tensorflow來進行此分類作業來幫助了解如何使用Tensorflow的工具進行語言資料分析。以下我們此資料集及PyTorch來說明`embedding`的概念。
 
 ## 1. 讀入資料
 首先，我們印出此資料集訓練組，屬於C#類別的第一個文字檔，來看看資料的原始內容。
@@ -139,7 +139,7 @@ ID     Token  Count
 12     with      1
 13    other      1
 ```
-如此我們就可以得到一個和之前巴赫音樂相仿的對照表。此對照表只有字頻之間的關係，如前文所解釋，RNN讀入時序資料時，會使用內部層的節點來保留時序關係。若我們使用ID欄位做為字元的數值表徵，此例句在讀入模型時，它會呈現如下所示，這些IDs之間的順序關係(例如1->4->5->6 ...)保留著句子結構，此數值概念就是初等統計學中的`ordinary variable`的概念。
+如此我們就可以得到一個和之前巴赫音樂相仿的對照表。此對照表只有字頻之間的關係，如前文所解釋，RNN讀入時序資料時，會使用內部層的節點來保留時序關係。若我們使用ID欄位做為字元的數值表徵，此例句在讀入模型時，它會呈現如下所示，這些IDs之間的順序關係(例如1->4->5->6 ...)保留著句子結構，此數值概念就是初等統計學中的順序變數(ordinary variable)的概念。
 
 ```
 ID     Token  Count
@@ -159,8 +159,9 @@ ID     Token  Count
 0      meow      3
 
 ```
+
 ## 4. Embedding
-`Embedding`使用continuous variable的概念取代ordinary variable的概念，相比於僅用字頻排序的靜態對照表來代表字庫中的每個字元，`embedding`使用多個浮點數來代表每個字元，並將之改為動態對照表。
+`Embedding`使用連續變數(continuous variable)的概念取代順序變數的概念，相比於僅用字頻排序的靜態對照表來代表字庫中的每個字元，`embedding`使用多個浮點數來代表每個字元，並將之改為動態對照表。
 
 這裡動態的實現方式是讓RNN模型，根據訓練組的資料去最佳化這些浮點數。以這個單一句子的字庫為例子說明，若我們決定使用三個特徵值，我們可以將此字庫使用如下面右方的`embedding`矩陣來表示。矩陣中的r0_1，r1_1，r2_1等變數，其實際數值是由資料最佳化來決定。
 
@@ -226,7 +227,7 @@ print(sorted_by_freq_tuples[:3])
 
 ```
 
-PyTorch使用Data loader的資料型態，在定義Data loader時，我們可以一個中介函數，將原始文字資料轉換為字頻對照表的整數數值。
+PyTorch使用Data loader的資料型態，在定義Data loader時，我們可以定義一個中介函數，將原始文字資料轉換為字頻對照表的整數數值。
 
 ```
 import torch.nn as nn
@@ -267,39 +268,101 @@ valid_dl = DataLoader(valid_dataset, batch_size=batch_size,
 test_dl = DataLoader(test_dataset, batch_size=batch_size,
                      shuffle=False, collate_fn=collate_batch)
 ```
+在將資料轉為PyTorch的DataLoader格式，之後的步驟就時之前的文章所展示的過程類似，設置模型，用訓練組找到最佳化的參數值，之後用測試組評估模型對新資料的推測準確度。
 
 # 小結
-使用了在兩層LSTM的內在層，在驗證組僅達到約75%的正確率，和Tensorflow所得到的結果有相當的差距，或許改變節點數、`embedding`的特徵數，或是再增加類神經網絡的層數可以增進RNN模型的推測準確率，另外樣本數僅有8,000筆，以及總字元數僅達46000多也許是另一個問題所在。
+雖然使用了兩層LSTM的內在層，驗證組卻只達到約75%的正確率，和Tensorflow所得到的結果有相當的差距，或許改變節點數、`embedding`的特徵值數目，或是再增加類神經網絡的層數可以增進RNN模型的推測準確率，另外此樣本數僅有8,000筆，總字元數僅達46000多也許是另一個問題所在。
 
 # 附錄
 
-## RNN模型
-RNN的第一步驟將每一條問題轉換為`embedding`的格式。
-
+## RNN模型的 Python 程式
 
 ```
+import pickle as pkl
+import argparse
+
+
+import numpy as np
+import os
+
+import pathlib
+import re
+from collections import Counter, OrderedDict
+
 import torch
+from torch.utils.data import random_split
+from torchtext.vocab import vocab
+from torch.utils.data import DataLoader
 import torch.nn as nn
 
+
+def tokenizer(text):
+    text = re.sub("<[^>]*>", "", text)
+    emoticons = re.findall("(?::|;|=)(?:-)?(?:\)|\(|D|P)", text.lower())
+    text = re.sub("[\W]+", " ", text.lower()) + " ".join(emoticons).replace("-", "")
+    tokenized = text.split()
+    return tokenized
+
+
+def collate_batch(batch):
+    label_list, text_list, lengths = [], [], []
+
+    for _label, _text in batch:
+
+        label_list.append(_label)
+        processed_text = torch.tensor(text_pipeline(_text), dtype=torch.int64)
+        text_list.append(processed_text)
+
+        lengths.append(processed_text.size(0))
+
+    label_list = torch.tensor(label_list)
+    lengths = torch.tensor(lengths)
+
+    padded_text_list = nn.utils.rnn.pad_sequence(text_list, batch_first=True)
+    return padded_text_list.to(device), label_list.to(device), lengths.to(device)
+
+
 class RNN(nn.Module):
-    def __init__(self, vocab_size, embed_dim, rnn_hidden_size, fc_hidden_size, num_classes):
+    def __init__(
+        self, vocab_size, embed_dim, rnn_hidden_size, fc_hidden_size, num_classes
+    ):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size + 2, embed_dim, padding_idx=0)
-        self.rnn1 = nn.LSTM(embed_dim, rnn_hidden_size, batch_first=True, dropout=0.5, bidirectional=True)
-        self.rnn2 = nn.LSTM(rnn_hidden_size * 2, rnn_hidden_size, batch_first=True, dropout=0.5, bidirectional=True)
-        self.fc1 = nn.Linear(rnn_hidden_size * 2, fc_hidden_size)  # *2 for bidirectional
+        self.rnn1 = nn.LSTM(
+            embed_dim,
+            rnn_hidden_size,
+            batch_first=True,
+            dropout=0.5,
+            bidirectional=True,
+        )
+        self.rnn2 = nn.LSTM(
+            rnn_hidden_size * 2,
+            rnn_hidden_size,
+            batch_first=True,
+            dropout=0.5,
+            bidirectional=True,
+        )
+        self.fc1 = nn.Linear(
+            rnn_hidden_size * 2, fc_hidden_size
+        )  # *2 for bidirectional
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(fc_hidden_size, num_classes)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, text, lengths):
         out = self.embedding(text)
-        out = nn.utils.rnn.pack_padded_sequence(out, lengths.cpu().numpy(), enforce_sorted=False, batch_first=True)
+        out = nn.utils.rnn.pack_padded_sequence(
+            out, lengths.cpu().numpy(), enforce_sorted=False, batch_first=True
+        )
         out, (hidden, cell) = self.rnn1(out)
         out, _ = nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
-        out = nn.utils.rnn.pack_padded_sequence(out, lengths.cpu().numpy(), enforce_sorted=False, batch_first=True)
+        out = nn.utils.rnn.pack_padded_sequence(
+            out, lengths.cpu().numpy(), enforce_sorted=False, batch_first=True
+        )
         out, (hidden, cell) = self.rnn2(out)
-        out = torch.cat((hidden[-2,:,:], hidden[-1,:,:]), dim=1)  # Concatenate the outputs from both directions
+        out = torch.cat(
+            (hidden[-2, :, :], hidden[-1, :, :]), dim=1
+        )  # Concatenate the outputs from both directions
         out = self.fc1(out)
         out = self.relu(out)
         out = self.fc2(out)
@@ -307,116 +370,109 @@ class RNN(nn.Module):
         return out
 
 
-
-
 def train(dataloader):
     model.train()
     total_acc, total_loss = 0, 0
-
     for text_batch, label_batch, lengths in dataloader:
         optimizer.zero_grad()
         pred = model(text_batch, lengths)
-        predicted_label = torch.argmax(pred, dim = 1)
-        
+        predicted_label = torch.argmax(pred, dim=1)
+
         loss = loss_fn(pred, label_batch)
         loss.backward()
         optimizer.step()
-        
+
         acc_vec = predicted_label == label_batch
         total_acc += acc_vec.float().sum().item()
-        total_loss += loss.item()*label_batch.size(0)
+        total_loss += loss.item() * label_batch.size(0)
+    return total_acc / len(dataloader.dataset), total_loss / len(dataloader.dataset)
 
-    return total_acc/len(dataloader.dataset), total_loss/len(dataloader.dataset)
- 
+
 def evaluate(dataloader):
     model.eval()
     total_acc, total_loss = 0, 0
-
     with torch.no_grad():
         for text_batch, label_batch, lengths in dataloader:
             pred = model(text_batch, lengths)
-            predicted_label = torch.argmax(pred, dim = 1)
-            
+            predicted_label = torch.argmax(pred, dim=1)
+
             loss = loss_fn(pred, label_batch)
             acc_vec = predicted_label == label_batch
             total_acc += acc_vec.float().sum().item()
-            total_loss += loss.item()*label_batch.size(0)
-
-    return total_acc/len(dataloader.dataset), total_loss/len(dataloader.dataset)
-
-```
-
-## Hyperparameters
-
-```
-vocab_size = len(vocab)
-embed_dim = 128  # n of feature
-rnn_hidden_size = 64
-fc_hidden_size = 64
-
-nclass = len(FOLDER_NAMES)
-
-torch.manual_seed(1)
-model = RNN(vocab_size, embed_dim, rnn_hidden_size, fc_hidden_size, nclass) 
-model = model.to(device)
-
-loss_fn = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+            total_loss += loss.item() * label_batch.size(0)
+    return total_acc / len(dataloader.dataset), total_loss / len(dataloader.dataset)
 
 
-```
+if __name__ == "__main__":
+    # python3 fit_stackoverflow.py "tmp_data/stackoverflow_data.pkl" "models/stackoverflow_model.pth" --batch_size 32 --nepoch 30 --nembed 256    
 
-## PyTorch最佳化過程
+    parser = argparse.ArgumentParser(description="Process data")
+    parser.add_argument("data_path", type=str, help="Path to the data file")
+    parser.add_argument("weight_path", type=str, help="Path to save weights")
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
+    parser.add_argument("--nepoch", type=int, default=30, help="Epoch size")
+    parser.add_argument("--nembed", type=int, default=128, help="Embedding dimension")
 
-```
-num_epochs = 30
+    args = parser.parse_args()
+    DATA_INPUT = args.data_path
+    WEIGHT_OUTPUT = args.weight_path
+    batch_size = args.batch_size
+    nepoch = args.nepoch
+    embed_dim = args.nembed
 
-for epoch in range(num_epochs):
-    acc_train, loss_train = train(train_dl)
-    acc_valid, loss_valid = evaluate(valid_dl)
-    print(
-        f"Epoch {epoch} [accuracy loss]: {acc_train:.3f} {loss_train:.2f}, [val_accuracy loss]: {acc_valid:.3f} {loss_valid:,.2f}"
+    with open(DATA_INPUT, "rb") as f:
+        train_dataset, valid_dataset, test_dataset = pkl.load(f)
+
+    ## Count
+    token_counts = Counter()
+
+    for label, line in train_dataset:
+        tokens = tokenizer(line)
+        token_counts.update(tokens)
+
+    nword = len(token_counts)
+    sorted_by_freq_tuples = sorted(
+        token_counts.items(), key=lambda x: x[1], reverse=True
     )
-# Epoch 0 [accuracy loss]: 0.379 1.32, [val_accuracy loss]: 0.402 1.29
-# Epoch 1 [accuracy loss]: 0.485 1.24, [val_accuracy loss]: 0.419 1.29
-# Epoch 2 [accuracy loss]: 0.549 1.19, [val_accuracy loss]: 0.586 1.14
-# Epoch 3 [accuracy loss]: 0.647 1.09, [val_accuracy loss]: 0.579 1.15
-# Epoch 4 [accuracy loss]: 0.680 1.06, [val_accuracy loss]: 0.614 1.11
-# Epoch 5 [accuracy loss]: 0.722 1.02, [val_accuracy loss]: 0.662 1.08
-# Epoch 6 [accuracy loss]: 0.755 0.99, [val_accuracy loss]: 0.694 1.05
-# Epoch 7 [accuracy loss]: 0.801 0.94, [val_accuracy loss]: 0.713 1.02
-# Epoch 8 [accuracy loss]: 0.829 0.91, [val_accuracy loss]: 0.716 1.02
-# Epoch 9 [accuracy loss]: 0.845 0.90, [val_accuracy loss]: 0.719 1.02
-# Epoch 10 [accuracy loss]: 0.874 0.87, [val_accuracy loss]: 0.738 1.00
-# Epoch 11 [accuracy loss]: 0.887 0.86, [val_accuracy loss]: 0.734 1.01
-# Epoch 12 [accuracy loss]: 0.903 0.84, [val_accuracy loss]: 0.739 1.00
-# Epoch 13 [accuracy loss]: 0.919 0.82, [val_accuracy loss]: 0.745 0.99
-# Epoch 14 [accuracy loss]: 0.916 0.83, [val_accuracy loss]: 0.746 0.99
-# Epoch 15 [accuracy loss]: 0.921 0.82, [val_accuracy loss]: 0.710 1.03
-# Epoch 16 [accuracy loss]: 0.934 0.81, [val_accuracy loss]: 0.742 0.99
-# Epoch 17 [accuracy loss]: 0.944 0.80, [val_accuracy loss]: 0.744 1.00
-# Epoch 18 [accuracy loss]: 0.950 0.79, [val_accuracy loss]: 0.756 0.98
-# Epoch 19 [accuracy loss]: 0.951 0.79, [val_accuracy loss]: 0.761 0.98
-# Epoch 20 [accuracy loss]: 0.947 0.80, [val_accuracy loss]: 0.756 0.98
-# Epoch 21 [accuracy loss]: 0.962 0.78, [val_accuracy loss]: 0.763 0.98
-# Epoch 22 [accuracy loss]: 0.966 0.78, [val_accuracy loss]: 0.764 0.98
-# Epoch 23 [accuracy loss]: 0.968 0.78, [val_accuracy loss]: 0.754 0.99
-# Epoch 24 [accuracy loss]: 0.969 0.77, [val_accuracy loss]: 0.742 1.00
-# Epoch 25 [accuracy loss]: 0.964 0.78, [val_accuracy loss]: 0.754 0.99
-# Epoch 26 [accuracy loss]: 0.968 0.78, [val_accuracy loss]: 0.752 0.99
-# Epoch 27 [accuracy loss]: 0.961 0.78, [val_accuracy loss]: 0.736 1.00
-# Epoch 28 [accuracy loss]: 0.962 0.78, [val_accuracy loss]: 0.748 0.99
-# Epoch 29 [accuracy loss]: 0.970 0.77, [val_accuracy loss]: 0.750 0.99
-# 
-```
 
-## 測試組評估。
+    ordered_dict = OrderedDict(sorted_by_freq_tuples)
+    vocab = vocab(ordered_dict)
+    vocab.insert_token("<pad>", 0)
+    vocab.insert_token("<unk>", 1)
+    vocab.set_default_index(1)
 
-```
-acc_test, loss_test = evaluate(test_dl)
-print(f'test_accuracy: {acc_test:.4f} {loss_test:.2f}') 
+    device = torch.device("cuda:0")
+    text_pipeline = lambda x: [vocab[token] for token in tokenizer(x)]
 
-weight_path = 'models/stackoverflow_model.pth'
-torch.save(model.state_dict(), weight_path)
+    train_dl = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch
+    )
+    valid_dl = DataLoader(
+        valid_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch
+    )
+    test_dl = DataLoader(
+        test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_batch
+    )
+
+    vocab_size = len(vocab)
+    rnn_hidden_size = 64
+    fc_hidden_size = 64
+    nclass = 4
+
+    model = RNN(vocab_size, embed_dim, rnn_hidden_size, fc_hidden_size, nclass)
+    model = model.to(device)
+
+    loss_fn = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+    for epoch in range(nepoch):
+        acc_train, loss_train = train(train_dl)
+        acc_valid, loss_valid = evaluate(valid_dl)
+        print(
+            f"Epoch {epoch} [accuracy loss]: {acc_train:.3f} {loss_train:.2f}, [val_accuracy loss]: {acc_valid:.3f} {loss_valid:,.2f}"
+        )
+        
+    torch.save(model.state_dict(), WEIGHT_OUTPUT)
 
 ```
+
